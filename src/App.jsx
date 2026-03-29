@@ -42,22 +42,51 @@ function StudyBuddy() {
   const gid = useId();
   const furId = `buddy-fur-${gid}`;
   return (
-    <svg width="52" height="52" viewBox="0 0 64 64" aria-hidden="true" style={{ flexShrink: 0, filter: "drop-shadow(0 2px 8px rgba(232,93,117,0.2))" }}>
+    <svg width="52" height="52" viewBox="0 0 512 512" aria-hidden="true" style={{ flexShrink: 0, filter: "drop-shadow(0 2px 8px rgba(255,179,193,0.3))" }}>
       <defs>
         <linearGradient id={furId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFD6E0" />
-          <stop offset="100%" stopColor="#F5A8B8" />
+          <stop offset="0%" stopColor="#FFE5EC" />
+          <stop offset="50%" stopColor="#FFB3C1" />
+          <stop offset="100%" stopColor="#FF8FA3" />
         </linearGradient>
+        <radialGradient id="blushGradient">
+          <stop offset="0%" stopColor="#FF6B9D" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#FF6B9D" stopOpacity="0.2" />
+        </radialGradient>
       </defs>
-      <ellipse cx="32" cy="38" rx="24" ry="22" fill={`url(#${furId})`} />
-      <ellipse cx="14" cy="24" rx="11" ry="13" fill={`url(#${furId})`} />
-      <ellipse cx="50" cy="22" rx="9" ry="14" fill={`url(#${furId})`} />
-      <ellipse cx="25" cy="36" rx="5" ry="6" fill="#3D2E35" />
-      <ellipse cx="39" cy="36" rx="5" ry="6" fill="#3D2E35" />
-      <ellipse cx="26" cy="37" rx="1.8" ry="2.2" fill="#fff" />
-      <ellipse cx="40" cy="37" rx="1.8" ry="2.2" fill="#fff" />
-      <ellipse cx="32" cy="46" rx="4" ry="2.5" fill="#E85D75" opacity="0.35" />
-      <path d="M28 50 Q32 53 36 50" stroke="#C44A62" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      
+      {/* Labubu body */}
+      <ellipse cx="256" cy="320" rx="140" ry="120" fill={`url(#${furId})`} />
+      
+      {/* Labubu ears */}
+      <ellipse cx="180" cy="180" rx="65" ry="85" fill={`url(#${furId})`} transform="rotate(-15 180 180)" />
+      <ellipse cx="332" cy="175" rx="60" ry="90" fill={`url(#${furId})`} transform="rotate(20 332 175)" />
+      
+      {/* Inner ears */}
+      <ellipse cx="185" cy="185" rx="25" ry="35" fill="#FFD6E0" transform="rotate(-15 185 185)" />
+      <ellipse cx="325" cy="180" rx="22" ry="38" fill="#FFD6E0" transform="rotate(20 325 180)" />
+      
+      {/* Eyes */}
+      <ellipse cx="220" cy="300" rx="18" ry="25" fill="#2D1B3D" />
+      <ellipse cx="292" cy="300" rx="18" ry="25" fill="#2D1B3D" />
+      
+      {/* Eye sparkles */}
+      <ellipse cx="224" cy="295" rx="6" ry="8" fill="#FFFFFF" opacity="0.9" />
+      <ellipse cx="296" cy="295" rx="6" ry="8" fill="#FFFFFF" opacity="0.9" />
+      
+      {/* Nose */}
+      <ellipse cx="256" cy="335" rx="12" ry="8" fill="#FF6B9D" opacity="0.4" />
+      
+      {/* Mouth */}
+      <path d="M235 355 Q256 375 277 355" stroke="#C44A62" strokeWidth="4" fill="none" strokeLinecap="round" />
+      
+      {/* Blush */}
+      <ellipse cx="190" cy="330" rx="25" ry="15" fill="url(#blushGradient)" />
+      <ellipse cx="322" cy="330" rx="25" ry="15" fill="url(#blushGradient)" />
+      
+      {/* Horns */}
+      <path d="M200 160 L195 120 L205 125 Z" fill="#FFD6E0" stroke="#FFB3C1" strokeWidth="2" />
+      <path d="M312 155 L307 115 L317 120 Z" fill="#FFD6E0" stroke="#FFB3C1" strokeWidth="2" />
     </svg>
   );
 }
@@ -259,48 +288,48 @@ export default function App() {
 
   const coachMsg = useCallback(() => {
     if (daysToExam <= 1)
-      return { txt: "🎯 KCET 2026 exam day. Trust your prep. Notes only. Sleep by 10 PM.", clr: T.rose };
+      return { txt: "🎯 KCET 2026 exam day! Your assistant believes in you. Notes only. Sleep by 10 PM.", clr: T.rose };
     if (daysToExam <= 3)
       return {
-        txt: "🔥 Final 3 days! No new topics — revision, past papers, and 8 hrs sleep only.",
+        txt: "🔥 Final 3 days! Your assistant says: No new topics — revision, past papers, and 8 hrs sleep only.",
         clr: "#ffb86b",
       };
     if (chapterCheckedCount >= 8 && doneCount < 20)
       return {
-        txt: `✨ ${USER.name}, you marked ${chapterCheckedCount} chapters as strong — lean into what’s still shaky.`,
+        txt: `✨ ${USER.name}, your assistant is proud! You marked ${chapterCheckedCount} chapters as strong — focus on what needs practice.`,
         clr: T.lilac,
       };
     if (pendingCU.length > 4)
       return {
-        txt: `😤 ${pendingCU.length} catch-up sessions pending. Stop everything. Do ONE right now.`,
+        txt: `😤 Your assistant is concerned: ${pendingCU.length} catch-up sessions pending. Stop everything. Do ONE right now.`,
         clr: "#fb7185",
       };
     if (Object.values(status).filter((v) => v === "skipped").length > 6)
       return {
-        txt: "⚠️ Too many skips. Block 1 hour NOW and clear at least 2 catch-up sessions.",
+        txt: "⚠️ Your assistant notices too many skips. Block 1 hour NOW and clear at least 2 catch-up sessions.",
         clr: "#fbbf24",
       };
     if (hour < 7)
-      return { txt: "🌅 Early morning hits different. Do this before the world wakes up.", clr: "#5ee9b5" };
+      return { txt: "🌅 Early morning magic! Your assistant is up with you. Do this before world wakes up.", clr: "#5ee9b5" };
     if (hour < 12)
       return {
         txt:
           pct > 40
-            ? "💪 Great start! Morning brain is peak — hit the hardest topic first."
-            : "☀️ Morning session time. Start strong — everything else can wait.",
+            ? "💪 Your assistant loves your energy! Morning brain is peak — hit hardest topic first."
+            : "☀️ Your assistant is ready! Morning session time. Start strong — everything else can wait.",
         clr: "#7cb9ff",
       };
     if (hour < 17)
       return {
-        txt: "⚡ Afternoon grind. Don't nap. Start one session — the slump disappears instantly.",
+        txt: "⚡ Afternoon grind! Your assistant says no naps. Start one session — slump disappears instantly.",
         clr: "#ffb86b",
       };
     if (hour < 21)
       return {
-        txt: "🌙 Evening mode. Revision + questions now. No heavy new topics after 9 PM.",
+        txt: "🌙 Evening study time! Your assistant is here for revision + questions. No heavy new topics after 9 PM.",
         clr: T.lilac,
       };
-    return { txt: "😴 After 9 PM — review notes only. Close session, sleep by 11.", clr: T.muted };
+    return { txt: "😴 After 9 PM — Your assistant says review notes only. Close session, sleep by 11.", clr: T.muted };
   }, [daysToExam, chapterCheckedCount, doneCount, pendingCU.length, status, hour, pct, USER.name]);
 
   const coach = coachMsg();
@@ -309,7 +338,7 @@ export default function App() {
 
   const shareText = useCallback(() => {
     const lines = [
-      `KCET 2026 Coach — Hi ${USER.name}`,
+      `KCET Assistant — Hi ${USER.name}`,
       `${DAYS[todayIdx]} · Day ${todayIdx + 1}/${TOTAL_PLAN_DAYS}`,
       `Days to KCET 2026 exam: ${daysToExam}`,
       "",
@@ -326,7 +355,7 @@ export default function App() {
         (sub) => `  ${S[sub].label}: ${subStats[sub].done}/${subStats[sub].total}`
       ),
       "",
-      `— ${USER.name}'s companion · KCET 2026`,
+      `— KCET Assistant · KCET 2026`,
     ];
     return lines.join("\n");
   }, [
@@ -454,7 +483,7 @@ export default function App() {
                   marginTop: 2,
                 }}
               >
-                KCET 2026 buddy
+                KCET Assistant
               </div>
               <div style={{ fontSize: 12, color: T.muted, marginTop: 4, lineHeight: 1.35 }}>
                 {DAYS[todayIdx]} · Day {todayIdx + 1}/{TOTAL_PLAN_DAYS}
@@ -588,16 +617,16 @@ export default function App() {
         }}
       >
         <div style={{ fontSize: 10, fontWeight: 800, color: T.faint, letterSpacing: 1, marginBottom: 8 }}>
-          PHONE APP & REMINDERS
+          📱 KCET PHONE APP & REMINDERS
         </div>
         {isStandalone && (
           <p style={{ margin: "0 0 10px", fontSize: 12, color: T.mint, fontWeight: 700 }}>
-            Installed as an app — you are in standalone mode.
+            🎉 KCET app installed — you're in standalone mode!
           </p>
         )}
         <p style={{ margin: "0 0 10px", fontSize: 12, color: T.muted, lineHeight: 1.45 }}>
-          Install like a real app (cutie icon on home screen). Reminders only{" "}
-          <strong style={{ color: T.cream }}>8am–9pm</strong> on her phone — never at night.
+          Install KCET Assistant as a real app with cute icon on home screen. Gentle reminders only{" "}
+          <strong style={{ color: T.cream }}>8am–9pm</strong> — never at night so you sleep well!
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {(installAvailable || /iPhone|iPad|iPod/i.test(navigator.userAgent || "")) && (
@@ -613,12 +642,13 @@ export default function App() {
                 fontWeight: 800,
                 fontSize: 13,
                 cursor: installAvailable ? "pointer" : "default",
-                background: installAvailable ? T.roseText : T.cardBlush,
+                background: installAvailable ? "linear-gradient(90deg, #FFB3C1, #FF8FA3)" : T.cardBlush,
                 color: "#fff",
                 opacity: installAvailable ? 1 : 0.7,
+                boxShadow: installAvailable ? "0 4px 12px rgba(255,179,193,0.3)" : "none",
               }}
             >
-              {installAvailable ? "Add to home screen (install app)" : "iPhone: Share → Add to Home Screen"}
+              {installAvailable ? "🌸 Add KCET Assistant to Home Screen" : "iPhone: Share → Add to Home Screen"}
             </button>
           )}
           <button
@@ -637,14 +667,25 @@ export default function App() {
             }}
           >
             {reminderEnabled
-              ? "Daily reminders on — tap to turn off"
-              : "Turn on gentle day-time reminders"}
+              ? "💕 Daily KCET reminders ON — tap to turn off"
+              : "🌙 Turn on gentle KCET reminders"}
           </button>
         </div>
-        <p style={{ margin: "10px 0 0", fontSize: 11, color: T.faint, lineHeight: 1.4 }}>
-          Android Chrome: best background nudges. iPhone: reminders when you open the app or from periodic sync
-          if Safari allows.
-        </p>
+        <div style={{ 
+          margin: "10px 0 0", 
+          padding: "8px 12px", 
+          background: "rgba(255,179,193,0.1)", 
+          borderRadius: 8,
+          fontSize: 11, 
+          color: T.faint, 
+          lineHeight: 1.4 
+        }}>
+          <strong style={{ color: "#FF8FA3" }}>📱 Installation Tips:</strong><br/>
+          • Android Chrome: Best background notifications<br/>
+          • iPhone: Reminders when app is open<br/>
+          • Tap install button above for cute app icon<br/>
+          • Works offline once installed!
+        </div>
       </div>
 
       {copyHint && (

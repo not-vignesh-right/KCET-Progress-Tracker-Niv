@@ -1,0 +1,56 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="labubuGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFE5EC;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFB3C1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8FA3;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="blushGradient">
+      <stop offset="0%" style="stop-color:#FF6B9D;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#FF6B9D;stop-opacity:0.2" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="#FFF5F8" stroke="#FFD6E0" stroke-width="8"/>
+  
+  <!-- Labubu body -->
+  <ellipse cx="256" cy="320" rx="140" ry="120" fill="url(#labubuGradient)" />
+  
+  <!-- Labubu ears -->
+  <ellipse cx="180" cy="180" rx="65" ry="85" fill="url(#labubuGradient)" transform="rotate(-15 180 180)" />
+  <ellipse cx="332" cy="175" rx="60" ry="90" fill="url(#labubuGradient)" transform="rotate(20 332 175)" />
+  
+  <!-- Inner ears -->
+  <ellipse cx="185" cy="185" rx="25" ry="35" fill="#FFD6E0" transform="rotate(-15 185 185)" />
+  <ellipse cx="325" cy="180" rx="22" ry="38" fill="#FFD6E0" transform="rotate(20 325 180)" />
+  
+  <!-- Eyes -->
+  <ellipse cx="220" cy="300" rx="18" ry="25" fill="#2D1B3D" />
+  <ellipse cx="292" cy="300" rx="18" ry="25" fill="#2D1B3D" />
+  
+  <!-- Eye sparkles -->
+  <ellipse cx="224" cy="295" rx="6" ry="8" fill="#FFFFFF" opacity="0.9" />
+  <ellipse cx="296" cy="295" rx="6" ry="8" fill="#FFFFFF" opacity="0.9" />
+  
+  <!-- Nose -->
+  <ellipse cx="256" cy="335" rx="12" ry="8" fill="#FF6B9D" opacity="0.4" />
+  
+  <!-- Mouth -->
+  <path d="M235 355 Q256 375 277 355" stroke="#C44A62" stroke-width="4" fill="none" stroke-linecap="round" />
+  
+  <!-- Blush -->
+  <ellipse cx="190" cy="330" rx="25" ry="15" fill="url(#blushGradient)" />
+  <ellipse cx="322" cy="330" rx="25" ry="15" fill="url(#blushGradient)" />
+  
+  <!-- Horns -->
+  <path d="M200 160 L195 120 L205 125 Z" fill="#FFD6E0" stroke="#FFB3C1" stroke-width="2" />
+  <path d="M312 155 L307 115 L317 120 Z" fill="#FFD6E0" stroke="#FFB3C1" stroke-width="2" />
+  
+  <!-- Study book icon -->
+  <rect x="200" y="380" width="112" height="80" rx="8" fill="#7CB9FF" opacity="0.8" />
+  <rect x="210" y="390" width="92" height="60" rx="4" fill="#FFFFFF" opacity="0.9" />
+  <line x1="220" y1="405" x2="292" y2="405" stroke="#5EE9B5" stroke-width="3" stroke-linecap="round" />
+  <line x1="220" y1="420" x2="280" y2="420" stroke="#FFB86B" stroke-width="3" stroke-linecap="round" />
+  <line x1="220" y1="435" x2="285" y2="435" stroke="#E78DFB" stroke-width="3" stroke-linecap="round" />
+</svg>
