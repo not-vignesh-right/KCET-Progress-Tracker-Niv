@@ -1,0 +1,1035 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index 7720edb..48c6525 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -115,6 +115,13 @@ export default function App() {
+   );
+   const [installAvailable, setInstallAvailable] = useState(false);
+   const [isStandalone, setIsStandalone] = useState(false);
++  const [currentTime, setCurrentTime] = useState(new Date());
++  const [currentSession, setCurrentSession] = useState(null);
++  const [nextSession, setNextSession] = useState(null);
++  const [sessionTimers, setSessionTimers] = useState({});
++  const [focusMode, setFocusMode] = useState(null);
++  const [focusStartTime, setFocusStartTime] = useState(null);
++  const [focusElapsed, setFocusElapsed] = useState(0);
+   const installPromptRef = useRef(null);
+   const remindGateRef = useRef({});
+ 
+@@ -148,6 +155,242 @@ export default function App() {
+     } catch (_) {}
+   }, []);
+ 
++  // Dynamic time updates
++  useEffect(() => {
++    const timer = setInterval(() => {
++      const now = new Date();
++      setCurrentTime(now);
++      updateCurrentSession(now);
++      
++      // Update focus mode elapsed time
++      if (focusMode && focusStartTime) {
++        setFocusElapsed(Math.floor((now - focusStartTime) / 1000));
++      }
++    }, 1000); // Update every second for timer accuracy
++
++    // Initial call
++    updateCurrentSession(new Date());
++
++    return () => clearInterval(timer);
++  }, []);
++
++  // Keyboard handler for focus mode
++  useEffect(() => {
++    const handleKeyDown = (e) => {
++      if (e.key === 'Escape' && focusMode) {
++        pauseSession(focusMode.id);
++        exitFocusMode();
++      }
++    };
++
++    if (focusMode) {
++      document.addEventListener('keydown', handleKeyDown);
++      return () => document.removeEventListener('keydown', handleKeyDown);
++    }
++  }, [focusMode, pauseSession, exitFocusMode]);
++
++  const startSession = useCallback((sessionId) => {
++    const now = new Date();
++    setSessionTimers(prev => ({
++      ...prev,
++      [sessionId]: {
++        startTime: now,
++        elapsedTime: 0,
++        isPaused: false,
++        totalPausedTime: 0,
++        lastPauseTime: null
++      }
++    }));
++  }, []);
++
++  const pauseSession = useCallback((sessionId) => {
++    setSessionTimers(prev => {
++      const timer = prev[sessionId];
++      if (!timer) return prev;
++      
++      if (timer.isPaused) {
++        // Resume
++        const pauseDuration = timer.lastPauseTime ? (new Date() - timer.lastPauseTime) / 1000 : 0;
++        return {
++          ...prev,
++          [sessionId]: {
++            ...timer,
++            isPaused: false,
++            totalPausedTime: timer.totalPausedTime + pauseDuration,
++            lastPauseTime: null
++          }
++        };
++      } else {
++        // Pause
++        return {
++          ...prev,
++          [sessionId]: {
++            ...timer,
++            isPaused: true,
++            lastPauseTime: new Date()
++          }
++        };
++      }
++    });
++  }, []);
++
++  const stopSession = useCallback((sessionId) => {
++    setSessionTimers(prev => {
++      const timer = prev[sessionId];
++      if (!timer) return prev;
++      
++      const finalElapsed = timer.isPaused && timer.lastPauseTime 
++        ? timer.elapsedTime 
++        : timer.elapsedTime + (new Date() - timer.startTime) / 1000 - timer.totalPausedTime;
++      
++      return {
++        ...prev,
++        [sessionId]: {
++          ...timer,
++          elapsedTime: finalElapsed,
++          isCompleted: true,
++          isPaused: false
++        }
++      };
++    });
++  }, []);
++
++  const enterFocusMode = useCallback((session) => {
++    setFocusMode(session);
++    setFocusStartTime(new Date());
++    setFocusElapsed(0);
++  }, []);
++
++  const exitFocusMode = useCallback(() => {
++    if (focusMode) {
++      stopSession(focusMode.id);
++    }
++    setFocusMode(null);
++    setFocusStartTime(null);
++    setFocusElapsed(0);
++  }, [focusMode, stopSession]);
++
++  const getSessionTimer = useCallback((sessionId) => {
++    const timer = sessionTimers[sessionId];
++    if (!timer) return null;
++    
++    if (!timer.isCompleted && !timer.isPaused && timer.startTime) {
++      const currentElapsed = (new Date() - timer.startTime) / 1000 - timer.totalPausedTime;
++      return {
++        ...timer,
++        elapsedTime: currentElapsed
++      };
++    }
++    
++    return timer;
++  }, [sessionTimers]);
++
++  const formatTime = (seconds) => {
++    const hours = Math.floor(seconds / 3600);
++    const minutes = Math.floor((seconds % 3600) / 60);
++    const secs = Math.floor(seconds % 60);
++    
++    if (hours > 0) {
++      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
++    }
++    return `${minutes}:${secs.toString().padStart(2, '0')}`;
++  };
++
++  const updateCurrentSession = (now) => {
++    const currentHour = now.getHours();
++    const currentMinute = now.getMinutes();
++    const currentTimeInMinutes = currentHour * 60 + currentMinute;
++
++    // Session time ranges in minutes
++    const sessionRanges = [
++      { start: 6 * 60, end: 9 * 60, label: "6–9 AM" },
++      { start: 10 * 60, end: 13 * 60, label: "10AM–1PM" },
++      { start: 14 * 60, end: 17 * 60, label: "2–5 PM" },
++      { start: 18 * 60, end: 20 * 60, label: "6–8 PM" },
++    ];
++
++    // Find current session
++    const currentSessionRange = sessionRanges.find(range => 
++      currentTimeInMinutes >= range.start && currentTimeInMinutes < range.end
++    );
++
++    if (currentSessionRange) {
++      const current = todayAll.find(s => s.slot === currentSessionRange.label);
++      setCurrentSession(current || null);
++    } else {
++      setCurrentSession(null);
++    }
++
++    // Find next session
++    const nextRange = sessionRanges.find(range => currentTimeInMinutes < range.start);
++    if (nextRange) {
++      const next = todayAll.find(s => s.slot === nextRange.label);
++      setNextSession(next || null);
++    } else {
++      // If all sessions for today are done, look at tomorrow
++      setNextSession(null);
++    }
++  };
++
++  const getSessionStatus = (session) => {
++    if (!session) return null;
++    const sessionStatus = status[session.id];
++    if (isSessionComplete(sessionStatus)) return "completed";
++    if (sessionStatus === "skipped") return "skipped";
++    return "pending";
++  };
++
++  const getTimeUntilSession = (sessionSlot) => {
++    const now = new Date();
++    const currentHour = now.getHours();
++    const currentMinute = now.getMinutes();
++    const currentTimeInMinutes = currentHour * 60 + currentMinute;
++
++    const sessionTimes = {
++      "6–9 AM": { start: 6 * 60, end: 9 * 60 },
++      "10AM–1PM": { start: 10 * 60, end: 13 * 60 },
++      "2–5 PM": { start: 14 * 60, end: 17 * 60 },
++      "6–8 PM": { start: 18 * 60, end: 20 * 60 },
++    };
++
++    const sessionTime = sessionTimes[sessionSlot];
++    if (!sessionTime) return null;
++
++    const minutesUntil = sessionTime.start - currentTimeInMinutes;
++    if (minutesUntil <= 0) return null;
++
++    const hours = Math.floor(minutesUntil / 60);
++    const minutes = minutesUntil % 60;
++    
++    if (hours > 0) {
++      return `${hours}h ${minutes}m`;
++    }
++    return `${minutes}m`;
++  };
++
++  const getSessionProgress = (session) => {
++    if (!session || !currentSession || currentSession.id !== session.id) return 0;
++    
++    const now = new Date();
++    const currentHour = now.getHours();
++    const currentMinute = now.getMinutes();
++    const currentTimeInMinutes = currentHour * 60 + currentMinute;
++
++    const sessionRanges = {
++      "6–9 AM": { start: 6 * 60, end: 9 * 60, duration: 3 * 60 },
++      "10AM–1PM": { start: 10 * 60, end: 13 * 60, duration: 3 * 60 },
++      "2–5 PM": { start: 14 * 60, end: 17 * 60, duration: 3 * 60 },
++      "6–8 PM": { start: 18 * 60, end: 20 * 60, duration: 2 * 60 },
++    };
++
++    const range = sessionRanges[session.slot];
++    if (!range) return 0;
++
++    const elapsed = currentTimeInMinutes - range.start;
++    const progress = Math.min(100, Math.max(0, (elapsed / range.duration) * 100));
++    return Math.round(progress);
++  };
++
+   useEffect(() => {
+     const onBip = (e) => {
+       e.preventDefault();
+@@ -269,6 +512,25 @@ export default function App() {
+   const todayAll = [...todaySess, ...todayCU];
+   const todayDone = todayAll.filter((s) => isSessionComplete(status[s.id])).length;
+ 
++  // Dynamic time updates - moved here to fix dependency issue
++  useEffect(() => {
++    const timer = setInterval(() => {
++      const now = new Date();
++      setCurrentTime(now);
++      updateCurrentSession(now);
++      
++      // Update focus mode elapsed time
++      if (focusMode && focusStartTime) {
++        setFocusElapsed(Math.floor((now - focusStartTime) / 1000));
++      }
++    }, 1000); // Update every second for timer accuracy
++
++    // Initial call
++    updateCurrentSession(new Date());
++
++    return () => clearInterval(timer);
++  }, [todayIdx, todayAll, status, focusMode, focusStartTime]);
++
+   remindGateRef.current = {
+     on: reminderEnabled,
+     perm: typeof Notification !== "undefined" ? Notification.permission : "denied",
+@@ -401,18 +663,115 @@ export default function App() {
+   }, [status, catchUps, streak, lastDay, chapterDone]);
+ 
+   return (
+-    <div
+-      style={{
+-        background: T.bgGradient,
+-        minHeight: "100vh",
+-        fontFamily: "'Nunito',sans-serif",
+-        color: T.text,
+-        paddingBottom: 88,
+-        maxWidth: 480,
+-        margin: "0 auto",
+-        boxSizing: "border-box",
+-      }}
+-    >
++    <>
++      {focusMode && (
++        <div
++          style={{
++            position: 'fixed',
++            top: 0,
++            left: 0,
++            right: 0,
++            bottom: 0,
++            background: 'linear-gradient(135deg, #1e1b4b, #312e81)',
++            zIndex: 9999,
++            display: 'flex',
++            flexDirection: 'column',
++            alignItems: 'center',
++            justifyContent: 'center',
++            color: '#fff',
++            fontFamily: "'Nunito', sans-serif",
++          }}
++        >
++          <div style={{ textAlign: 'center', maxWidth: 400, padding: 20 }}>
++            <div style={{ fontSize: 16, color: '#a78bfa', marginBottom: 8, fontWeight: 600 }}>
++              {S[focusMode.sub].emoji} {S[focusMode.sub].label}
++            </div>
++            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 20, lineHeight: 1.3 }}>
++              {focusMode.ch.split('(')[0].trim()}
++            </div>
++            
++            <div style={{
++              fontSize: 48,
++              fontWeight: 800,
++              color: '#fbbf24',
++              marginBottom: 20,
++              fontFamily: "'Fredoka', sans-serif",
++              textShadow: '0 0 20px rgba(251, 191, 36, 0.5)',
++            }}>
++              {formatTime(focusElapsed)}
++            </div>
++            
++            <div style={{ fontSize: 14, color: '#e2e8f0', marginBottom: 30, fontStyle: 'italic' }}>
++              Stay focused! You're doing great 🎯
++            </div>
++            
++            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
++              <button
++                onClick={() => {
++                  pauseSession(focusMode.id);
++                  exitFocusMode();
++                }}
++                style={{
++                  background: 'rgba(251, 191, 36, 0.2)',
++                  color: '#fbbf24',
++                  border: '1px solid #fbbf24',
++                  borderRadius: 12,
++                  padding: '12px 24px',
++                  fontSize: 14,
++                  fontWeight: 700,
++                  cursor: 'pointer',
++                }}
++              >
++                ⏸️ Pause & Exit
++              </button>
++              <button
++                onClick={() => {
++                  stopSession(focusMode.id);
++                  markDone(focusMode);
++                  exitFocusMode();
++                }}
++                style={{
++                  background: 'rgba(52, 211, 153, 0.2)',
++                  color: '#5ee9b5',
++                  border: '1px solid #5ee9b5',
++                  borderRadius: 12,
++                  padding: '12px 24px',
++                  fontSize: 14,
++                  fontWeight: 700,
++                  cursor: 'pointer',
++                }}
++              >
++                ✅ Complete Session
++              </button>
++            </div>
++          </div>
++          
++          <div style={{
++            position: 'absolute',
++            bottom: 20,
++            fontSize: 12,
++            color: '#64748b',
++            fontStyle: 'italic',
++          }}>
++            Press ESC or tap outside to pause
++          </div>
++        </div>
++      )}
++
++      <div
++        style={{
++          background: T.bgGradient,
++          minHeight: "100vh",
++          fontFamily: "'Nunito',sans-serif",
++          color: T.text,
++          paddingBottom: 88,
++          maxWidth: 480,
++          margin: "0 auto",
++          boxSizing: "border-box",
++          filter: focusMode ? 'blur(8px)' : 'none',
++          transition: 'filter 0.3s ease',
++        }}
++      >
+       {phoneBanner && (
+         <div
+           style={{
+@@ -582,6 +941,67 @@ export default function App() {
+             textTransform: "uppercase",
+             marginBottom: 6,
+           }}
++        >
++          {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} · Live Session Tracker
++        </div>
++        
++        {currentSession && (
++          <div style={{ marginBottom: 12 }}>
++            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
++              <span style={{ fontSize: 12, fontWeight: 700, color: S[currentSession.sub].color }}>
++                {S[currentSession.sub].emoji} NOW: {currentSession.ch.split('(')[0].trim()}
++              </span>
++              <span style={{ fontSize: 10, color: T.muted }}>
++                {getSessionProgress(currentSession)}% complete
++              </span>
++            </div>
++            <div
++              style={{
++                height: 4,
++                background: '#f0f0f0',
++                borderRadius: 2,
++                overflow: 'hidden',
++              }}
++            >
++              <div
++                style={{
++                  height: '100%',
++                  width: `${getSessionProgress(currentSession)}%`,
++                  background: S[currentSession.sub].color,
++                  transition: 'width 1s ease',
++                }}
++              />
++            </div>
++          </div>
++        )}
++
++        {nextSession && !currentSession && (
++          <div style={{ marginBottom: 12 }}>
++            <div style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>
++              Next session starts in:
++            </div>
++            <div style={{ fontSize: 14, fontWeight: 700, color: S[nextSession.sub].color }}>
++              {getTimeUntilSession(nextSession.slot)} · {S[nextSession.sub].emoji} {nextSession.ch.split('(')[0].trim()}
++            </div>
++          </div>
++        )}
++
++        {!currentSession && !nextSession && (
++          <div style={{ fontSize: 11, color: T.muted, fontStyle: 'italic' }}>
++            All today's sessions completed! 🎉
++          </div>
++        )}
++
++        <div
++          style={{
++            fontSize: 10,
++            fontWeight: 800,
++            color: T.faint,
++            letterSpacing: 1,
++            textTransform: "uppercase",
++            marginTop: 8,
++            marginBottom: 6,
++          }}
+         >
+           Today with you
+         </div>
+@@ -765,6 +1185,16 @@ export default function App() {
+               onSkip={markSkipped}
+               onMastered={markMastered}
+               flash={flash === s.id}
++              isCurrentSession={currentSession?.id === s.id}
++              isNextSession={nextSession?.id === s.id}
++              timeUntilSession={getTimeUntilSession(s.slot)}
++              sessionProgress={getSessionProgress(s)}
++              timer={getSessionTimer(s.id)}
++              onStart={startSession}
++              onPause={pauseSession}
++              onStop={stopSession}
++              onFocusMode={enterFocusMode}
++              formatTime={formatTime}
+             />
+           ))}
+           {todayCU.length > 0 && (
+@@ -792,6 +1222,16 @@ export default function App() {
+                   onMastered={markMastered}
+                   catchUp
+                   flash={flash === s.id}
++                  isCurrentSession={currentSession?.id === s.id}
++                  isNextSession={nextSession?.id === s.id}
++                  timeUntilSession={getTimeUntilSession(s.slot)}
++                  sessionProgress={getSessionProgress(s)}
++                  timer={getSessionTimer(s.id)}
++                  onStart={startSession}
++                  onPause={pauseSession}
++                  onStop={stopSession}
++                  onFocusMode={enterFocusMode}
++                  formatTime={formatTime}
+                 />
+               ))}
+             </>
+@@ -938,6 +1378,15 @@ export default function App() {
+                         onMastered={markMastered}
+                         compact
+                         flash={flash === s.id}
++                        isCurrentSession={currentSession?.id === s.id}
++                        isNextSession={nextSession?.id === s.id}
++                        timeUntilSession={getTimeUntilSession(s.slot)}
++                        sessionProgress={getSessionProgress(s)}
++                        timer={getSessionTimer(s.id)}
++                        onStart={startSession}
++                        onPause={pauseSession}
++                        onStop={stopSession}
++                        onFocusMode={enterFocusMode}
+                       />
+                     ))}
+                     {pendingCU
+@@ -953,6 +1402,15 @@ export default function App() {
+                           compact
+                           catchUp
+                           flash={flash === s.id}
++                          isCurrentSession={currentSession?.id === s.id}
++                          isNextSession={nextSession?.id === s.id}
++                          timeUntilSession={getTimeUntilSession(s.slot)}
++                          sessionProgress={getSessionProgress(s)}
++                          timer={getSessionTimer(s.id)}
++                          onStart={startSession}
++                          onPause={pauseSession}
++                          onStop={stopSession}
++                          onFocusMode={enterFocusMode}
+                         />
+                       ))}
+                   </div>
+@@ -1251,10 +1709,11 @@ export default function App() {
+         ))}
+       </div>
+     </div>
++      </>
+   );
+ }
+ 
+-function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
++function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash, isCurrentSession, isNextSession, timeUntilSession, sessionProgress, timer, onStart, onPause, onStop, onFocusMode, formatTime }) {
+   const done = st === "done";
+   const mastered = st === "mastered";
+   const skipped = st === "skipped";
+@@ -1264,14 +1723,16 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
+     <div
+       style={{
+         marginBottom: compact ? 4 : 7,
+-        background: done
+-          ? T.mintDim
+-          : mastered
+-            ? T.lilacDim
+-            : skipped
+-              ? T.cardBlush
+-              : "#fff",
++        background: isCurrentSession ? `${S[s.sub].color}15` : 
++          done
++            ? T.mintDim
++            : mastered
++              ? T.lilacDim
++              : skipped
++                ? T.cardBlush
++                : "#fff",
+         border: `1px solid ${
++          isCurrentSession ? S[s.sub].color :
+           done
+             ? `${T.mint}55`
+             : mastered
+@@ -1284,9 +1745,26 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
+         padding: compact ? "7px 10px" : "11px 12px",
+         opacity: skipped ? 0.45 : 1,
+         transition: "all 0.2s ease",
+-        boxShadow: flash ? `0 0 0 3px ${S[s.sub].color}22` : T.shadowSm,
++        boxShadow: flash ? `0 0 0 3px ${S[s.sub].color}22` : 
++                  isCurrentSession ? `0 0 0 2px ${S[s.sub].color}40` : T.shadowSm,
++        position: "relative",
+       }}
+     >
++      {isCurrentSession && (
++        <div
++          style={{
++            position: "absolute",
++            top: -1,
++            left: -1,
++            right: -1,
++            bottom: -1,
++            background: `linear-gradient(45deg, ${S[s.sub].color}20, ${S[s.sub].color}10)`,
++            borderRadius: T.radiusMd,
++            zIndex: -1,
++          }}
++        />
++      )}
++      
+       <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+         <div style={{ flex: 1 }}>
+           <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap", marginBottom: 3 }}>
+@@ -1303,6 +1781,35 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
+               {S[s.sub].emoji} {S[s.sub].label}
+             </span>
+             <span style={{ fontSize: 10, color: T.muted }}>{s.slot}</span>
++            {isCurrentSession && (
++              <span
++                style={{
++                  fontSize: 9,
++                  fontWeight: 700,
++                  color: "#fff",
++                  background: S[s.sub].color,
++                  padding: "2px 6px",
++                  borderRadius: 10,
++                  animation: "pulse 2s infinite",
++                }}
++              >
++                🔴 LIVE
++              </span>
++            )}
++            {isNextSession && !isCurrentSession && (
++              <span
++                style={{
++                  fontSize: 9,
++                  fontWeight: 700,
++                  color: S[s.sub].color,
++                  background: `${S[s.sub].color}15`,
++                  padding: "2px 6px",
++                  borderRadius: 10,
++                }}
++              >
++                ⏰ NEXT ({timeUntilSession})
++              </span>
++            )}
+             {catchUp && (
+               <span
+                 style={{
+@@ -1352,6 +1859,117 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
+           >
+             {s.ch}
+           </div>
++          
++          {isCurrentSession && sessionProgress > 0 && (
++            <div style={{ marginTop: 8 }}>
++              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
++                <span style={{ fontSize: 9, color: T.muted }}>Session Progress</span>
++                <span style={{ fontSize: 9, color: S[s.sub].color, fontWeight: 700 }}>{sessionProgress}%</span>
++              </div>
++              <div
++                style={{
++                  height: 3,
++                  background: '#f0f0f0',
++                  borderRadius: 2,
++                  overflow: 'hidden',
++                }}
++              >
++                <div
++                  style={{
++                    height: '100%',
++                    width: `${sessionProgress}%`,
++                    background: S[s.sub].color,
++                    transition: 'width 1s ease',
++                  }}
++                />
++              </div>
++            </div>
++          )}
++          
++          {timer && !complete && (
++            <div style={{ marginTop: 8 }}>
++              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
++                <span style={{ fontSize: 9, color: T.muted }}>Study Time</span>
++                <span style={{ fontSize: 10, color: S[s.sub].color, fontWeight: 700 }}>
++                  {timer.isPaused ? '⏸️ PAUSED' : '⏱️'} {timer ? formatTime(timer.elapsedTime) : '0:00'}
++                </span>
++              </div>
++              <div style={{ display: 'flex', gap: 4 }}>
++                {!timer.startTime ? (
++                  <button
++                    type="button"
++                    onClick={() => onStart(s.id)}
++                    style={{
++                      flex: 1,
++                      background: S[s.sub].color,
++                      color: '#fff',
++                      border: 'none',
++                      borderRadius: 6,
++                      padding: '4px 8px',
++                      fontSize: 10,
++                      fontWeight: 700,
++                      cursor: 'pointer',
++                    }}
++                  >
++                    ▶️ START
++                  </button>
++                ) : (
++                  <>
++                    <button
++                      type="button"
++                      onClick={() => onPause(s.id)}
++                      style={{
++                        flex: 1,
++                        background: timer.isPaused ? '#5ee9b5' : '#fbbf24',
++                        color: '#fff',
++                        border: 'none',
++                        borderRadius: 6,
++                        padding: '4px 6px',
++                        fontSize: 9,
++                        fontWeight: 700,
++                        cursor: 'pointer',
++                      }}
++                    >
++                      {timer.isPaused ? '▶️ RESUME' : '⏸️ PAUSE'}
++                    </button>
++                    <button
++                      type="button"
++                      onClick={() => onStop(s.id)}
++                      style={{
++                        flex: 1,
++                        background: '#fb7185',
++                        color: '#fff',
++                        border: 'none',
++                        borderRadius: 6,
++                        padding: '4px 6px',
++                        fontSize: 9,
++                        fontWeight: 700,
++                        cursor: 'pointer',
++                      }}
++                    >
++                      ⏹️ STOP
++                    </button>
++                  </>
++                )}
++                <button
++                  type="button"
++                  onClick={() => onFocusMode(s)}
++                  style={{
++                    background: 'linear-gradient(45deg, #8b5cf6, #ec4899)',
++                    color: '#fff',
++                    border: 'none',
++                    borderRadius: 6,
++                    padding: '4px 8px',
++                    fontSize: 9,
++                    fontWeight: 700,
++                    cursor: 'pointer',
++                  }}
++                >
++                  🎯 FOCUS
++                </button>
++              </div>
++            </div>
++          )}
+         </div>
+         {!complete && !skipped && (
+           <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+diff --git a/src/data.js b/src/data.js
+index 69745e4..28dd9a1 100644
+--- a/src/data.js
++++ b/src/data.js
+@@ -5,12 +5,11 @@ export const S = {
+   math: { label: "Maths", color: "#e78dfb", dark: "rgba(42,22,52,0.92)", emoji: "∫" },
+ };
+ 
+-/** Number of planner days (Mar 29 → Apr 13, 2026). */
++/** Number of planner days (Mar 30 → Apr 14, 2026). */
+ export const TOTAL_PLAN_DAYS = 16;
+ 
+ /** Calendar labels — KCET 2026 prep window (matches PLAN_START in getDayIndex). */
+ export const DAYS = [
+-  "Sun Mar 29, 2026",
+   "Mon Mar 30, 2026",
+   "Tue Mar 31, 2026",
+   "Wed Apr 1, 2026",
+@@ -26,119 +25,128 @@ export const DAYS = [
+   "Sat Apr 11, 2026",
+   "Sun Apr 12, 2026",
+   "Mon Apr 13, 2026",
++  "Tue Apr 14, 2026",
+ ];
+ 
+ export const ALL_SESSIONS = [
+-  { id: "d0s0", day: 0, slot: "6–9 AM", sub: "bio", p: 3, ch: "Genetics Pt.1 – Mendel's Laws, Monohybrid & Dihybrid crosses, Chromosomal theory" },
+-  { id: "d0s1", day: 0, slot: "10AM–1PM", sub: "math", p: 3, ch: "Indefinite Integration – standard forms, substitution, integration by parts" },
+-  { id: "d0s2", day: 0, slot: "2–5 PM", sub: "bio", p: 3, ch: "Genetics Pt.1 cont. – Codominance, sex-linked inheritance, polygenic traits" },
+-  { id: "d0s3", day: 0, slot: "6–8 PM", sub: "math", p: 2, ch: "Integration – KCET PYQ practice & formula drill" },
+-  { id: "d1s0", day: 1, slot: "6–9 AM", sub: "bio", p: 3, ch: "Genetics Pt.2 – DNA structure, replication, transcription, translation" },
+-  { id: "d1s1", day: 1, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Electrostatics – Coulomb's law, E-field, Gauss's law, potential, capacitors" },
+-  { id: "d1s2", day: 1, slot: "2–5 PM", sub: "bio", p: 3, ch: "Genetics Pt.2 cont. – Human Genome Project, DNA fingerprinting, gene expression" },
+-  { id: "d1s3", day: 1, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electrostatics numericals – capacitor combinations & Gauss's law problems" },
+-  { id: "d2s0", day: 2, slot: "6–9 AM", sub: "bio", p: 3, ch: "Evolution – Origin of life, Darwin's theory, evidences, speciation, Hardy-Weinberg" },
+-  { id: "d2s1", day: 2, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Haloalkanes & Haloarenes – Nomenclature, SN1/SN2, elimination reactions" },
+-  { id: "d2s2", day: 2, slot: "2–5 PM", sub: "chem", p: 3, ch: "Haloalkanes cont. – Grignard reagent, polyhalogen compounds, DDT" },
+-  { id: "d2s3", day: 2, slot: "6–8 PM", sub: "bio", p: 2, ch: "Bio revision – Genetics + Evolution NCERT Q&A + key diagrams" },
+-  { id: "d3s0", day: 3, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Reproduction – Male & female systems, gametogenesis, fertilisation, implantation" },
+-  { id: "d3s1", day: 3, slot: "10AM–1PM", sub: "math", p: 3, ch: "Definite Integration – properties, area under curve, area between curves" },
+-  { id: "d3s2", day: 3, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Reproduction cont. – Embryo development, pregnancy, parturition, lactation" },
+-  { id: "d3s3", day: 3, slot: "6–8 PM", sub: "math", p: 3, ch: "Definite Integration – KCET PYQ problems (timed)" },
+-  { id: "d4s0", day: 4, slot: "6–9 AM", sub: "bio", p: 3, ch: "Reproductive Health – Contraception, MTP, STIs, infertility, ART (IVF, ZIFT, GIFT)" },
+-  { id: "d4s1", day: 4, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Current Electricity – Ohm's law, Kirchhoff's laws, Wheatstone bridge, drift velocity" },
+-  { id: "d4s2", day: 4, slot: "2–5 PM", sub: "bio", p: 2, ch: "Strategies for Enhancement – Animal & plant breeding, biofortification, SCP" },
+-  { id: "d4s3", day: 4, slot: "6–8 PM", sub: "phys", p: 3, ch: "Current Electricity – meter bridge, potentiometer, numericals" },
+-  { id: "d5s0", day: 5, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Physiology Pt.1 – Digestion & absorption, Breathing & gas exchange" },
+-  { id: "d5s1", day: 5, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Alcohols, Phenols & Ethers – Nomenclature, preparation, reactions, acidity" },
+-  { id: "d5s2", day: 5, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Physiology cont. – Body fluids, circulation, heart, blood pressure, lymph" },
+-  { id: "d5s3", day: 5, slot: "6–8 PM", sub: "chem", p: 2, ch: "APE cont. – Lucas test, oxidation reactions, ether prep + practice" },
+-  { id: "d6s0", day: 6, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Physiology Pt.2 – Neural coordination (impulse, synapse, reflex arc, brain)" },
+-  { id: "d6s1", day: 6, slot: "10AM–1PM", sub: "math", p: 3, ch: "Differentiation – chain rule, implicit, parametric + tangent/normal applications" },
+-  { id: "d6s2", day: 6, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Physiology Pt.2 cont. – Endocrine glands, hormones, excretion (nephron)" },
+-  { id: "d6s3", day: 6, slot: "6–8 PM", sub: "math", p: 3, ch: "Differentiation Applications – maxima, minima, rate of change, KCET PYQs" },
+-  { id: "d7s0", day: 7, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Physiology – Transport in plants, Mineral nutrition, Photosynthesis (LDR+LIR)" },
+-  { id: "d7s1", day: 7, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Magnetism & Moving Charges – Biot-Savart, Ampere's law, force on conductor" },
+-  { id: "d7s2", day: 7, slot: "2–5 PM", sub: "bio", p: 3, ch: "Plant Physiology cont. – Respiration, Growth & development, phytohormones" },
+-  { id: "d7s3", day: 7, slot: "6–8 PM", sub: "phys", p: 3, ch: "EMI – Faraday's laws, Lenz's law, self & mutual inductance, AC circuit basics" },
+-  { id: "d8s0", day: 8, slot: "6–9 AM", sub: "bio", p: 3, ch: "Ecology Pt.1 – Organisms & Populations (adaptations, growth models, interspecific)" },
+-  { id: "d8s1", day: 8, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Aldehydes, Ketones & CA – nucleophilic addition, Aldol, Cannizzaro, Clemmensen" },
+-  { id: "d8s2", day: 8, slot: "2–5 PM", sub: "bio", p: 3, ch: "Ecology Pt.2 – Ecosystem energy flow, nutrient cycles, Biodiversity & Conservation" },
+-  { id: "d8s3", day: 8, slot: "6–8 PM", sub: "chem", p: 2, ch: "Carbonyl compounds – mechanism summary + carboxylic acid derivatives" },
+-  { id: "d9s0", day: 9, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biotechnology – rDNA tools (restriction enzymes, PCR, gel electrophoresis, vectors)" },
+-  { id: "d9s1", day: 9, slot: "10AM–1PM", sub: "math", p: 3, ch: "Matrices & Determinants – operations, adjoint, inverse, Cramer's rule" },
+-  { id: "d9s2", day: 9, slot: "2–5 PM", sub: "bio", p: 2, ch: "Biotechnology Applications – Bt crops, GMOs, gene therapy, bioreactors, biosafety" },
+-  { id: "d9s3", day: 9, slot: "6–8 PM", sub: "math", p: 3, ch: "Determinants – KCET past year problems (timed)" },
+-  { id: "d10s0", day: 10, slot: "6–9 AM", sub: "bio", p: 2, ch: "Cell Biology – Cell cycle, Mitosis, Meiosis (stages & significance)" },
+-  { id: "d10s1", day: 10, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Ray Optics – reflection, refraction, lenses, mirrors, TIR, optical instruments" },
+-  { id: "d10s2", day: 10, slot: "2–5 PM", sub: "bio", p: 2, ch: "Diversity – Plant Kingdom (algae→angiosperms) + Animal Kingdom (key phyla)" },
+-  { id: "d10s3", day: 10, slot: "6–8 PM", sub: "phys", p: 3, ch: "Wave Optics – Huygens' principle, Young's double slit, diffraction, polarisation" },
+-  { id: "d11s0", day: 11, slot: "6–9 AM", sub: "chem", p: 3, ch: "Amines – classification, nomenclature, preparation, reactions, Hinsberg test, coupling" },
+-  { id: "d11s1", day: 11, slot: "10AM–1PM", sub: "math", p: 3, ch: "3D Geometry – direction cosines/ratios, line & plane equations, skew lines, distance" },
+-  { id: "d11s2", day: 11, slot: "2–5 PM", sub: "chem", p: 2, ch: "Biomolecules + Polymers – carbs, proteins, enzymes, nucleic acids, addition & condensation" },
+-  { id: "d11s3", day: 11, slot: "6–8 PM", sub: "math", p: 3, ch: "Vectors – dot product, cross product, scalar triple product, applications" },
+-  { id: "d12s0", day: 12, slot: "6–9 AM", sub: "phys", p: 3, ch: "Modern Physics – dual nature, photoelectric effect, de Broglie, Davisson-Germer" },
+-  { id: "d12s1", day: 12, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Electrochemistry – Galvanic cells, Nernst eq., EMF, conductance, electrolysis, Faraday" },
+-  { id: "d12s2", day: 12, slot: "2–5 PM", sub: "phys", p: 3, ch: "Atoms & Nuclei – Bohr model, spectral series, radioactivity, binding energy" },
+-  { id: "d12s3", day: 12, slot: "6–8 PM", sub: "chem", p: 3, ch: "Chemical Kinetics – rate laws, order of reaction, half-life, Arrhenius equation" },
+-  { id: "d13s0", day: 13, slot: "6–9 AM", sub: "phys", p: 3, ch: "Semiconductor Electronics – p-n junction, diode, Zener, transistor CE, logic gates" },
+-  { id: "d13s1", day: 13, slot: "10AM–1PM", sub: "math", p: 3, ch: "Probability – conditional probability, Bayes' theorem, binomial distribution" },
+-  { id: "d13s2", day: 13, slot: "2–5 PM", sub: "phys", p: 2, ch: "Waves & Oscillations – SHM equations, energy, standing waves, resonance, Doppler" },
+-  { id: "d13s3", day: 13, slot: "6–8 PM", sub: "math", p: 2, ch: "Complex Numbers + Binomial Theorem – De Moivre's, Argand plane, key identities" },
+-  { id: "d14s0", day: 14, slot: "6–9 AM", sub: "chem", p: 3, ch: "Coordination Compounds – IUPAC naming, Werner's theory, VBT, CFT, isomerism" },
+-  { id: "d14s1", day: 14, slot: "10AM–1PM", sub: "math", p: 3, ch: "Conic Sections – circles, parabola, ellipse, hyperbola standard forms & properties" },
+-  { id: "d14s2", day: 14, slot: "2–5 PM", sub: "chem", p: 2, ch: "p-Block + d & f Block – key reactions, HNO3, SO2, ozone, transition metal properties" },
+-  { id: "d14s3", day: 14, slot: "6–8 PM", sub: "math", p: 2, ch: "Differential Equations + Limits & Continuity – types, LHL/RHL tricks" },
+-  { id: "d15s0", day: 15, slot: "6–9 AM", sub: "chem", p: 2, ch: "Solutions + Surface Chemistry + Thermodynamics – colligative props, Hess's law" },
+-  { id: "d15s1", day: 15, slot: "10AM–1PM", sub: "phys", p: 2, ch: "Laws of Motion + Work-Energy + Thermal – friction, collision types, heat transfer" },
+-  { id: "d15s2", day: 15, slot: "2–5 PM", sub: "bio", p: 3, ch: "🔁 FULL BIO REVISION – NCERT diagrams, hormone tables, ecology terms, genetics numericals" },
+-  { id: "d15s3", day: 15, slot: "6–8 PM", sub: "math", p: 3, ch: "🔁 FULL MATHS REVISION – formula sheet, weak topic drill, integration tricks" },
++  { id: "d0s0", day: 0, slot: "6–9 AM", sub: "bio", p: 3, ch: "Principles of Inheritance and Variation (NCERT Reading & PYQs)" },
++  { id: "d0s1", day: 0, slot: "10AM–1PM", sub: "math", p: 3, ch: "Integrals (NCERT Ex 7.1-7.11 & PYQs)" },
++  { id: "d0s2", day: 0, slot: "2–5 PM", sub: "chem", p: 3, ch: "Haloalkanes and Haloarenes (NCERT Reading & In-text)" },
++  { id: "d0s3", day: 0, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electric Charges and Fields (NCERT Derivations & Exercises)" },
++
++  { id: "d1s0", day: 1, slot: "6–9 AM", sub: "bio", p: 3, ch: "Molecular Basis of Inheritance (NCERT Reading & PYQs)" },
++  { id: "d1s1", day: 1, slot: "10AM–1PM", sub: "math", p: 2, ch: "Application of Integrals" },
++  { id: "d1s2", day: 1, slot: "2–5 PM", sub: "chem", p: 3, ch: "Alcohols, Phenols and Ethers (NCERT Reading & In-text)" },
++  { id: "d1s3", day: 1, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electrostatic Potential and Capacitance (NCERT & PYQs)" },
++
++  { id: "d2s0", day: 2, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Reproduction & Reproductive Health" },
++  { id: "d2s1", day: 2, slot: "10AM–1PM", sub: "math", p: 2, ch: "Differential Equations" },
++  { id: "d2s2", day: 2, slot: "2–5 PM", sub: "chem", p: 3, ch: "Aldehydes, Ketones and Carboxylic Acids (NCERT)" },
++  { id: "d2s3", day: 2, slot: "6–8 PM", sub: "phys", p: 3, ch: "Current Electricity (NCERT & PYQs)" },
++
++  { id: "d3s0", day: 3, slot: "6–9 AM", sub: "bio", p: 3, ch: "Evolution & Human Health and Disease" },
++  { id: "d3s1", day: 3, slot: "10AM–1PM", sub: "math", p: 3, ch: "Matrices and Determinants" },
++  { id: "d3s2", day: 3, slot: "2–5 PM", sub: "chem", p: 3, ch: "Amines & Biomolecules (NCERT)" },
++  { id: "d3s3", day: 3, slot: "6–8 PM", sub: "phys", p: 3, ch: "Moving Charges and Magnetism" },
++
++  { id: "d4s0", day: 4, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biotechnology: Principles and Processes, & Applications" },
++  { id: "d4s1", day: 4, slot: "10AM–1PM", sub: "math", p: 3, ch: "Continuity and Differentiability" },
++  { id: "d4s2", day: 4, slot: "2–5 PM", sub: "chem", p: 3, ch: "Coordination Compounds & d-and f-Block Elements" },
++  { id: "d4s3", day: 4, slot: "6–8 PM", sub: "phys", p: 3, ch: "Magnetism and Matter & Electromagnetic Induction" },
++
++  { id: "d5s0", day: 5, slot: "6–9 AM", sub: "bio", p: 3, ch: "Organisms and Populations & Ecosystem" },
++  { id: "d5s1", day: 5, slot: "10AM–1PM", sub: "math", p: 3, ch: "Application of Derivatives" },
++  { id: "d5s2", day: 5, slot: "2–5 PM", sub: "chem", p: 3, ch: "Electrochemistry & Chemical Kinetics (NCERT)" },
++  { id: "d5s3", day: 5, slot: "6–8 PM", sub: "phys", p: 3, ch: "Alternating Current & Electromagnetic Waves" },
++
++  { id: "d6s0", day: 6, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biodiversity and Conservation & Environmental Issues" },
++  { id: "d6s1", day: 6, slot: "10AM–1PM", sub: "math", p: 3, ch: "Vector Algebra" },
++  { id: "d6s2", day: 6, slot: "2–5 PM", sub: "chem", p: 3, ch: "Solutions & Surface Chemistry" },
++  { id: "d6s3", day: 6, slot: "6–8 PM", sub: "phys", p: 3, ch: "Ray Optics and Optical Instruments" },
++
++  { id: "d7s0", day: 7, slot: "6–9 AM", sub: "bio", p: 3, ch: "Cell: The Unit of Life & Cell Cycle and Cell Division" },
++  { id: "d7s1", day: 7, slot: "10AM–1PM", sub: "math", p: 3, ch: "Three Dimensional Geometry" },
++  { id: "d7s2", day: 7, slot: "2–5 PM", sub: "chem", p: 3, ch: "Thermodynamics & Equilibrium (Class 11)" },
++  { id: "d7s3", day: 7, slot: "6–8 PM", sub: "phys", p: 3, ch: "Wave Optics" },
++
++  { id: "d8s0", day: 8, slot: "6–9 AM", sub: "bio", p: 3, ch: "Structural Organisation in Animals & Biomolecules (11th)" },
++  { id: "d8s1", day: 8, slot: "10AM–1PM", sub: "math", p: 3, ch: "Probability" },
++  { id: "d8s2", day: 8, slot: "2–5 PM", sub: "chem", p: 3, ch: "Structure of Atom & Classification of Elements" },
++  { id: "d8s3", day: 8, slot: "6–8 PM", sub: "phys", p: 3, ch: "Dual Nature of Radiation and Matter" },
++
++  { id: "d9s0", day: 9, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Kingdom & Animal Kingdom" },
++  { id: "d9s1", day: 9, slot: "10AM–1PM", sub: "math", p: 3, ch: "Relations and Functions & Inverse Trigonometric Functions" },
++  { id: "d9s2", day: 9, slot: "2–5 PM", sub: "chem", p: 3, ch: "Chemical Bonding and Molecular Structure" },
++  { id: "d9s3", day: 9, slot: "6–8 PM", sub: "phys", p: 3, ch: "Atoms and Nuclei" },
++
++  { id: "d10s0", day: 10, slot: "6–9 AM", sub: "bio", p: 3, ch: "Morphology & Anatomy of Flowering Plants" },
++  { id: "d10s1", day: 10, slot: "10AM–1PM", sub: "math", p: 3, ch: "Complex Numbers & Quadratic Equations, Linear Inequalities" },
++  { id: "d10s2", day: 10, slot: "2–5 PM", sub: "chem", p: 3, ch: "p-Block Elements (Class 11 & 12)" },
++  { id: "d10s3", day: 10, slot: "6–8 PM", sub: "phys", p: 3, ch: "Semiconductor Electronics (Materials, Devices & Circuits)" },
++
++  { id: "d11s0", day: 11, slot: "6–9 AM", sub: "bio", p: 3, ch: "Photosynthesis in Higher Plants & Respiration in Plants" },
++  { id: "d11s1", day: 11, slot: "10AM–1PM", sub: "math", p: 3, ch: "Permutations, Combinations & Binomial Theorem" },
++  { id: "d11s2", day: 11, slot: "2–5 PM", sub: "chem", p: 3, ch: "Some Basic Concepts of Chemistry & Redox Reactions" },
++  { id: "d11s3", day: 11, slot: "6–8 PM", sub: "phys", p: 3, ch: "Thermodynamics & Kinetic Theory" },
++
++  { id: "d12s0", day: 12, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Growth and Development & Transport/Mineral Nutrition" },
++  { id: "d12s1", day: 12, slot: "10AM–1PM", sub: "math", p: 3, ch: "Sequence and Series & Limits and Derivatives" },
++  { id: "d12s2", day: 12, slot: "2–5 PM", sub: "chem", p: 3, ch: "Hydrocarbons & Environmental Chemistry" },
++  { id: "d12s3", day: 12, slot: "6–8 PM", sub: "phys", p: 3, ch: "Laws of Motion & Work, Energy and Power" },
++
++  { id: "d13s0", day: 13, slot: "6–9 AM", sub: "bio", p: 3, ch: "Digestion and Absorption & Breathing and Exchange of Gases" },
++  { id: "d13s1", day: 13, slot: "10AM–1PM", sub: "math", p: 3, ch: "Conic Sections & Straight Lines" },
++  { id: "d13s2", day: 13, slot: "2–5 PM", sub: "chem", p: 3, ch: "States of Matter & s-Block Elements" },
++  { id: "d13s3", day: 13, slot: "6–8 PM", sub: "phys", p: 3, ch: "Rotational Motion & Gravitation" },
++
++  { id: "d14s0", day: 14, slot: "6–9 AM", sub: "bio", p: 3, ch: "Body Fluids and Circulation & Excretory Products" },
++  { id: "d14s1", day: 14, slot: "10AM–1PM", sub: "math", p: 3, ch: "Sets, Mathematical Reasoning & Statistics" },
++  { id: "d14s2", day: 14, slot: "2–5 PM", sub: "chem", p: 3, ch: "Organic Chemistry: Some Basic Principles and Techniques" },
++  { id: "d14s3", day: 14, slot: "6–8 PM", sub: "phys", p: 3, ch: "Mechanical Properties of Solids and Fluids" },
++
++  { id: "d15s0", day: 15, slot: "6–9 AM", sub: "bio", p: 3, ch: "Locomotion and Movement, Neural Control & Chemical Coordination" },
++  { id: "d15s1", day: 15, slot: "10AM–1PM", sub: "math", p: 3, ch: "🔁 FULL MATHS MOCK TEST (KCET Pattern)" },
++  { id: "d15s2", day: 15, slot: "2–5 PM", sub: "chem", p: 3, ch: "🔁 FULL CHEMISTRY REVISION (Formulas & Name Reactions)" },
++  { id: "d15s3", day: 15, slot: "6–8 PM", sub: "phys", p: 3, ch: "🔁 FULL PHYSICS REVISION (Formula Drill)" },
+ ];
+ 
+-/** Checklist of major concepts — tick what you already know (independent of daily sessions). */
++/** Checklist of major NCERT units/concepts — tick what you already know. */
+ export const CHAPTER_CHECKLIST = [
+-  { id: "bio_genetics", sub: "bio", label: "Genetics (Mendel + Molecular)", stars: 3 },
+-  { id: "bio_repro", sub: "bio", label: "Human Reproduction + Health", stars: 3 },
+-  { id: "bio_physio", sub: "bio", label: "Human Physiology (both parts)", stars: 3 },
+-  { id: "bio_ecology", sub: "bio", label: "Ecology + Biodiversity", stars: 3 },
++  { id: "bio_genetics", sub: "bio", label: "Genetics & Evolution (NCERT)", stars: 3 },
++  { id: "bio_repro", sub: "bio", label: "Reproduction (Plants & Human)", stars: 3 },
++  { id: "bio_human_physio", sub: "bio", label: "Human Physiology (NCERT 11th)", stars: 3 },
++  { id: "bio_plant_physio", sub: "bio", label: "Plant Physiology (NCERT 11th)", stars: 3 },
++  { id: "bio_cell", sub: "bio", label: "Cell Structure & Function", stars: 2 },
+   { id: "bio_biotech", sub: "bio", label: "Biotechnology", stars: 3 },
+-  { id: "bio_evo", sub: "bio", label: "Evolution", stars: 3 },
+-  { id: "bio_plant", sub: "bio", label: "Plant Physiology", stars: 2 },
+-  { id: "bio_cell", sub: "bio", label: "Cell Bio + Diversity", stars: 1 },
+-  { id: "chem_halo", sub: "chem", label: "Haloalkanes & Haloarenes", stars: 3 },
+-  { id: "chem_ape", sub: "chem", label: "APE (Alcohols, Phenols, Ethers)", stars: 3 },
+-  { id: "chem_carbonyl", sub: "chem", label: "Carbonyl + Carboxylic Acids", stars: 3 },
+-  { id: "chem_amines", sub: "chem", label: "Amines", stars: 3 },
+-  { id: "chem_electro", sub: "chem", label: "Electrochemistry", stars: 3 },
+-  { id: "chem_coord", sub: "chem", label: "Coordination Compounds", stars: 3 },
+-  { id: "chem_kinetics", sub: "chem", label: "Chemical Kinetics", stars: 2 },
+-  { id: "chem_block", sub: "chem", label: "p & d-block Elements", stars: 2 },
+-  { id: "chem_bio", sub: "chem", label: "Biomolecules + Polymers", stars: 2 },
+-  { id: "chem_misc", sub: "chem", label: "Solutions + Thermodynamics", stars: 1 },
+-  { id: "phys_electrostatics", sub: "phys", label: "Electrostatics", stars: 3 },
+-  { id: "phys_current", sub: "phys", label: "Current Electricity", stars: 3 },
+-  { id: "phys_mag", sub: "phys", label: "Magnetism + EMI", stars: 3 },
+-  { id: "phys_optics", sub: "phys", label: "Ray + Wave Optics", stars: 3 },
+-  { id: "phys_modern", sub: "phys", label: "Modern Physics", stars: 3 },
+-  { id: "phys_semi", sub: "phys", label: "Semiconductor Electronics", stars: 3 },
+-  { id: "phys_waves", sub: "phys", label: "Waves + SHM", stars: 2 },
+-  { id: "phys_mechanics", sub: "phys", label: "Laws of Motion", stars: 1 },
+-  { id: "math_int", sub: "math", label: "Integration (Indefinite + Definite)", stars: 3 },
+-  { id: "math_diff", sub: "math", label: "Differentiation + Applications", stars: 3 },
+-  { id: "math_prob", sub: "math", label: "Probability", stars: 3 },
+-  { id: "math_matrix", sub: "math", label: "Matrices & Determinants", stars: 3 },
+-  { id: "math_3d", sub: "math", label: "3D Geometry", stars: 3 },
+-  { id: "math_vec", sub: "math", label: "Vectors", stars: 3 },
+-  { id: "math_conic", sub: "math", label: "Conic Sections", stars: 2 },
+-  { id: "math_complex", sub: "math", label: "Complex Numbers", stars: 2 },
+-  { id: "math_de", sub: "math", label: "Differential Equations", stars: 1 },
++  { id: "bio_ecology", sub: "bio", label: "Ecology", stars: 3 },
++  { id: "bio_diversity", sub: "bio", label: "Diversity in Living World", stars: 1 },
++  { id: "bio_structure", sub: "bio", label: "Structural Org in Animals & Plants", stars: 1 },
++
++  { id: "chem_organic_12", sub: "chem", label: "Organic Chem - Class 12 Chapters", stars: 3 },
++  { id: "chem_organic_11", sub: "chem", label: "Organic Chem - Class 11 (GOC, Hydrocarbons)", stars: 3 },
++  { id: "chem_physical_12", sub: "chem", label: "Physical Chem - Class 12 (Electro, Kinetics)", stars: 3 },
++  { id: "chem_physical_11", sub: "chem", label: "Physical Chem - Class 11 (Thermo, Eq)", stars: 2 },
++  { id: "chem_inorganic", sub: "chem", label: "Inorganic Chem (Periodic, Bonding, Blocks)", stars: 2 },
++
++  { id: "phys_electro", sub: "phys", label: "Electrostatics & Current", stars: 3 },
++  { id: "phys_magnetic", sub: "phys", label: "Magnetism & EMI", stars: 3 },
++  { id: "phys_optics", sub: "phys", label: "Optics (Ray & Wave)", stars: 3 },
++  { id: "phys_modern", sub: "phys", label: "Modern Physics (Atoms, Nuclei, Dual Nature)", stars: 3 },
++  { id: "phys_mech_11", sub: "phys", label: "Mechanics (Laws of Motion, Work, Rotational)", stars: 2 },
++  { id: "phys_thermo", sub: "phys", label: "Thermodynamics & Kinetic Theory", stars: 1 },
++
++  { id: "math_calculus", sub: "math", label: "Calculus (Integrals & Derivatives)", stars: 3 },
++  { id: "math_algebra", sub: "math", label: "Algebra (Matrices, Complex, Binomial)", stars: 3 },
++  { id: "math_vectors_3d", sub: "math", label: "Vectors & 3D Geometry", stars: 3 },
++  { id: "math_coord", sub: "math", label: "Coordinate Geometry (Conics, Lines)", stars: 2 },
++  { id: "math_prob", sub: "math", label: "Probability & Statistics", stars: 2 },
+ ];
+ 
+ export const QUOTES = [
+   "Every chapter you finish today is one less thing to panic about on Apr 23, 2026.",
+   "Put the phone down. The notifs will be there after you ace KCET 2026.",
+   "Consistency beats intensity. Show up every single session.",
+-  "Don't think about 4 subjects — think about this one chapter.",
++  "Don't think about 4 subjects — think about this one NCERT chapter.",
+   "The students who get top ranks aren't smarter. They're consistent.",
+   "Hard work now = options later. Skipping now = regret later.",
+   "You don't need motivation. You need discipline. Just start.",
+@@ -147,8 +155,8 @@ export const QUOTES = [
+   "NCERT is your best friend right now — not Instagram.",
+ ];
+ 
+-/** First day of the 16-day planner (KCET 2026). */
+-export const PLAN_START = "2026-03-29";
++/** First day of the 16-day planner (Mar 30). */
++export const PLAN_START = "2026-03-30";
+ /** KCET 2026 exam window start (day 1 of exam). */
+ export const KCET_EXAM_DATE = "2026-04-23";
+ 
+@@ -157,7 +165,7 @@ export function getDayIndex() {
+   now.setHours(0, 0, 0, 0);
+   const s = new Date(PLAN_START);
+   s.setHours(0, 0, 0, 0);
+-  return Math.max(0, Math.min(15, Math.floor((now - s) / 86400000)));
++  return Math.max(0, Math.min(TOTAL_PLAN_DAYS - 1, Math.floor((now - s) / 86400000)));
+ }
+ 
+ export function getDaysToExam() {

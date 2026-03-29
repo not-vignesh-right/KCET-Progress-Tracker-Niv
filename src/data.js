@@ -5,12 +5,11 @@ export const S = {
   math: { label: "Maths", color: "#e78dfb", dark: "rgba(42,22,52,0.92)", emoji: "∫" },
 };
 
-/** Number of planner days (Mar 29 → Apr 13, 2026). */
+/** Number of planner days (Mar 30 → Apr 14, 2026). */
 export const TOTAL_PLAN_DAYS = 16;
 
 /** Calendar labels — KCET 2026 prep window (matches PLAN_START in getDayIndex). */
 export const DAYS = [
-  "Sun Mar 29, 2026",
   "Mon Mar 30, 2026",
   "Tue Mar 31, 2026",
   "Wed Apr 1, 2026",
@@ -26,119 +25,128 @@ export const DAYS = [
   "Sat Apr 11, 2026",
   "Sun Apr 12, 2026",
   "Mon Apr 13, 2026",
+  "Tue Apr 14, 2026",
 ];
 
 export const ALL_SESSIONS = [
-  { id: "d0s0", day: 0, slot: "6–9 AM", sub: "bio", p: 3, ch: "Genetics Pt.1 – Mendel's Laws, Monohybrid & Dihybrid crosses, Chromosomal theory" },
-  { id: "d0s1", day: 0, slot: "10AM–1PM", sub: "math", p: 3, ch: "Indefinite Integration – standard forms, substitution, integration by parts" },
-  { id: "d0s2", day: 0, slot: "2–5 PM", sub: "bio", p: 3, ch: "Genetics Pt.1 cont. – Codominance, sex-linked inheritance, polygenic traits" },
-  { id: "d0s3", day: 0, slot: "6–8 PM", sub: "math", p: 2, ch: "Integration – KCET PYQ practice & formula drill" },
-  { id: "d1s0", day: 1, slot: "6–9 AM", sub: "bio", p: 3, ch: "Genetics Pt.2 – DNA structure, replication, transcription, translation" },
-  { id: "d1s1", day: 1, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Electrostatics – Coulomb's law, E-field, Gauss's law, potential, capacitors" },
-  { id: "d1s2", day: 1, slot: "2–5 PM", sub: "bio", p: 3, ch: "Genetics Pt.2 cont. – Human Genome Project, DNA fingerprinting, gene expression" },
-  { id: "d1s3", day: 1, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electrostatics numericals – capacitor combinations & Gauss's law problems" },
-  { id: "d2s0", day: 2, slot: "6–9 AM", sub: "bio", p: 3, ch: "Evolution – Origin of life, Darwin's theory, evidences, speciation, Hardy-Weinberg" },
-  { id: "d2s1", day: 2, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Haloalkanes & Haloarenes – Nomenclature, SN1/SN2, elimination reactions" },
-  { id: "d2s2", day: 2, slot: "2–5 PM", sub: "chem", p: 3, ch: "Haloalkanes cont. – Grignard reagent, polyhalogen compounds, DDT" },
-  { id: "d2s3", day: 2, slot: "6–8 PM", sub: "bio", p: 2, ch: "Bio revision – Genetics + Evolution NCERT Q&A + key diagrams" },
-  { id: "d3s0", day: 3, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Reproduction – Male & female systems, gametogenesis, fertilisation, implantation" },
-  { id: "d3s1", day: 3, slot: "10AM–1PM", sub: "math", p: 3, ch: "Definite Integration – properties, area under curve, area between curves" },
-  { id: "d3s2", day: 3, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Reproduction cont. – Embryo development, pregnancy, parturition, lactation" },
-  { id: "d3s3", day: 3, slot: "6–8 PM", sub: "math", p: 3, ch: "Definite Integration – KCET PYQ problems (timed)" },
-  { id: "d4s0", day: 4, slot: "6–9 AM", sub: "bio", p: 3, ch: "Reproductive Health – Contraception, MTP, STIs, infertility, ART (IVF, ZIFT, GIFT)" },
-  { id: "d4s1", day: 4, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Current Electricity – Ohm's law, Kirchhoff's laws, Wheatstone bridge, drift velocity" },
-  { id: "d4s2", day: 4, slot: "2–5 PM", sub: "bio", p: 2, ch: "Strategies for Enhancement – Animal & plant breeding, biofortification, SCP" },
-  { id: "d4s3", day: 4, slot: "6–8 PM", sub: "phys", p: 3, ch: "Current Electricity – meter bridge, potentiometer, numericals" },
-  { id: "d5s0", day: 5, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Physiology Pt.1 – Digestion & absorption, Breathing & gas exchange" },
-  { id: "d5s1", day: 5, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Alcohols, Phenols & Ethers – Nomenclature, preparation, reactions, acidity" },
-  { id: "d5s2", day: 5, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Physiology cont. – Body fluids, circulation, heart, blood pressure, lymph" },
-  { id: "d5s3", day: 5, slot: "6–8 PM", sub: "chem", p: 2, ch: "APE cont. – Lucas test, oxidation reactions, ether prep + practice" },
-  { id: "d6s0", day: 6, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Physiology Pt.2 – Neural coordination (impulse, synapse, reflex arc, brain)" },
-  { id: "d6s1", day: 6, slot: "10AM–1PM", sub: "math", p: 3, ch: "Differentiation – chain rule, implicit, parametric + tangent/normal applications" },
-  { id: "d6s2", day: 6, slot: "2–5 PM", sub: "bio", p: 3, ch: "Human Physiology Pt.2 cont. – Endocrine glands, hormones, excretion (nephron)" },
-  { id: "d6s3", day: 6, slot: "6–8 PM", sub: "math", p: 3, ch: "Differentiation Applications – maxima, minima, rate of change, KCET PYQs" },
-  { id: "d7s0", day: 7, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Physiology – Transport in plants, Mineral nutrition, Photosynthesis (LDR+LIR)" },
-  { id: "d7s1", day: 7, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Magnetism & Moving Charges – Biot-Savart, Ampere's law, force on conductor" },
-  { id: "d7s2", day: 7, slot: "2–5 PM", sub: "bio", p: 3, ch: "Plant Physiology cont. – Respiration, Growth & development, phytohormones" },
-  { id: "d7s3", day: 7, slot: "6–8 PM", sub: "phys", p: 3, ch: "EMI – Faraday's laws, Lenz's law, self & mutual inductance, AC circuit basics" },
-  { id: "d8s0", day: 8, slot: "6–9 AM", sub: "bio", p: 3, ch: "Ecology Pt.1 – Organisms & Populations (adaptations, growth models, interspecific)" },
-  { id: "d8s1", day: 8, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Aldehydes, Ketones & CA – nucleophilic addition, Aldol, Cannizzaro, Clemmensen" },
-  { id: "d8s2", day: 8, slot: "2–5 PM", sub: "bio", p: 3, ch: "Ecology Pt.2 – Ecosystem energy flow, nutrient cycles, Biodiversity & Conservation" },
-  { id: "d8s3", day: 8, slot: "6–8 PM", sub: "chem", p: 2, ch: "Carbonyl compounds – mechanism summary + carboxylic acid derivatives" },
-  { id: "d9s0", day: 9, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biotechnology – rDNA tools (restriction enzymes, PCR, gel electrophoresis, vectors)" },
-  { id: "d9s1", day: 9, slot: "10AM–1PM", sub: "math", p: 3, ch: "Matrices & Determinants – operations, adjoint, inverse, Cramer's rule" },
-  { id: "d9s2", day: 9, slot: "2–5 PM", sub: "bio", p: 2, ch: "Biotechnology Applications – Bt crops, GMOs, gene therapy, bioreactors, biosafety" },
-  { id: "d9s3", day: 9, slot: "6–8 PM", sub: "math", p: 3, ch: "Determinants – KCET past year problems (timed)" },
-  { id: "d10s0", day: 10, slot: "6–9 AM", sub: "bio", p: 2, ch: "Cell Biology – Cell cycle, Mitosis, Meiosis (stages & significance)" },
-  { id: "d10s1", day: 10, slot: "10AM–1PM", sub: "phys", p: 3, ch: "Ray Optics – reflection, refraction, lenses, mirrors, TIR, optical instruments" },
-  { id: "d10s2", day: 10, slot: "2–5 PM", sub: "bio", p: 2, ch: "Diversity – Plant Kingdom (algae→angiosperms) + Animal Kingdom (key phyla)" },
-  { id: "d10s3", day: 10, slot: "6–8 PM", sub: "phys", p: 3, ch: "Wave Optics – Huygens' principle, Young's double slit, diffraction, polarisation" },
-  { id: "d11s0", day: 11, slot: "6–9 AM", sub: "chem", p: 3, ch: "Amines – classification, nomenclature, preparation, reactions, Hinsberg test, coupling" },
-  { id: "d11s1", day: 11, slot: "10AM–1PM", sub: "math", p: 3, ch: "3D Geometry – direction cosines/ratios, line & plane equations, skew lines, distance" },
-  { id: "d11s2", day: 11, slot: "2–5 PM", sub: "chem", p: 2, ch: "Biomolecules + Polymers – carbs, proteins, enzymes, nucleic acids, addition & condensation" },
-  { id: "d11s3", day: 11, slot: "6–8 PM", sub: "math", p: 3, ch: "Vectors – dot product, cross product, scalar triple product, applications" },
-  { id: "d12s0", day: 12, slot: "6–9 AM", sub: "phys", p: 3, ch: "Modern Physics – dual nature, photoelectric effect, de Broglie, Davisson-Germer" },
-  { id: "d12s1", day: 12, slot: "10AM–1PM", sub: "chem", p: 3, ch: "Electrochemistry – Galvanic cells, Nernst eq., EMF, conductance, electrolysis, Faraday" },
-  { id: "d12s2", day: 12, slot: "2–5 PM", sub: "phys", p: 3, ch: "Atoms & Nuclei – Bohr model, spectral series, radioactivity, binding energy" },
-  { id: "d12s3", day: 12, slot: "6–8 PM", sub: "chem", p: 3, ch: "Chemical Kinetics – rate laws, order of reaction, half-life, Arrhenius equation" },
-  { id: "d13s0", day: 13, slot: "6–9 AM", sub: "phys", p: 3, ch: "Semiconductor Electronics – p-n junction, diode, Zener, transistor CE, logic gates" },
-  { id: "d13s1", day: 13, slot: "10AM–1PM", sub: "math", p: 3, ch: "Probability – conditional probability, Bayes' theorem, binomial distribution" },
-  { id: "d13s2", day: 13, slot: "2–5 PM", sub: "phys", p: 2, ch: "Waves & Oscillations – SHM equations, energy, standing waves, resonance, Doppler" },
-  { id: "d13s3", day: 13, slot: "6–8 PM", sub: "math", p: 2, ch: "Complex Numbers + Binomial Theorem – De Moivre's, Argand plane, key identities" },
-  { id: "d14s0", day: 14, slot: "6–9 AM", sub: "chem", p: 3, ch: "Coordination Compounds – IUPAC naming, Werner's theory, VBT, CFT, isomerism" },
-  { id: "d14s1", day: 14, slot: "10AM–1PM", sub: "math", p: 3, ch: "Conic Sections – circles, parabola, ellipse, hyperbola standard forms & properties" },
-  { id: "d14s2", day: 14, slot: "2–5 PM", sub: "chem", p: 2, ch: "p-Block + d & f Block – key reactions, HNO3, SO2, ozone, transition metal properties" },
-  { id: "d14s3", day: 14, slot: "6–8 PM", sub: "math", p: 2, ch: "Differential Equations + Limits & Continuity – types, LHL/RHL tricks" },
-  { id: "d15s0", day: 15, slot: "6–9 AM", sub: "chem", p: 2, ch: "Solutions + Surface Chemistry + Thermodynamics – colligative props, Hess's law" },
-  { id: "d15s1", day: 15, slot: "10AM–1PM", sub: "phys", p: 2, ch: "Laws of Motion + Work-Energy + Thermal – friction, collision types, heat transfer" },
-  { id: "d15s2", day: 15, slot: "2–5 PM", sub: "bio", p: 3, ch: "🔁 FULL BIO REVISION – NCERT diagrams, hormone tables, ecology terms, genetics numericals" },
-  { id: "d15s3", day: 15, slot: "6–8 PM", sub: "math", p: 3, ch: "🔁 FULL MATHS REVISION – formula sheet, weak topic drill, integration tricks" },
+  { id: "d0s0", day: 0, slot: "6–9 AM", sub: "bio", p: 3, ch: "Principles of Inheritance and Variation (NCERT Reading & PYQs)" },
+  { id: "d0s1", day: 0, slot: "10AM–1PM", sub: "math", p: 3, ch: "Integrals (NCERT Ex 7.1-7.11 & PYQs)" },
+  { id: "d0s2", day: 0, slot: "2–5 PM", sub: "chem", p: 3, ch: "Haloalkanes and Haloarenes (NCERT Reading & In-text)" },
+  { id: "d0s3", day: 0, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electric Charges and Fields (NCERT Derivations & Exercises)" },
+
+  { id: "d1s0", day: 1, slot: "6–9 AM", sub: "bio", p: 3, ch: "Molecular Basis of Inheritance (NCERT Reading & PYQs)" },
+  { id: "d1s1", day: 1, slot: "10AM–1PM", sub: "math", p: 2, ch: "Application of Integrals" },
+  { id: "d1s2", day: 1, slot: "2–5 PM", sub: "chem", p: 3, ch: "Alcohols, Phenols and Ethers (NCERT Reading & In-text)" },
+  { id: "d1s3", day: 1, slot: "6–8 PM", sub: "phys", p: 3, ch: "Electrostatic Potential and Capacitance (NCERT & PYQs)" },
+
+  { id: "d2s0", day: 2, slot: "6–9 AM", sub: "bio", p: 3, ch: "Human Reproduction & Reproductive Health" },
+  { id: "d2s1", day: 2, slot: "10AM–1PM", sub: "math", p: 2, ch: "Differential Equations" },
+  { id: "d2s2", day: 2, slot: "2–5 PM", sub: "chem", p: 3, ch: "Aldehydes, Ketones and Carboxylic Acids (NCERT)" },
+  { id: "d2s3", day: 2, slot: "6–8 PM", sub: "phys", p: 3, ch: "Current Electricity (NCERT & PYQs)" },
+
+  { id: "d3s0", day: 3, slot: "6–9 AM", sub: "bio", p: 3, ch: "Evolution & Human Health and Disease" },
+  { id: "d3s1", day: 3, slot: "10AM–1PM", sub: "math", p: 3, ch: "Matrices and Determinants" },
+  { id: "d3s2", day: 3, slot: "2–5 PM", sub: "chem", p: 3, ch: "Amines & Biomolecules (NCERT)" },
+  { id: "d3s3", day: 3, slot: "6–8 PM", sub: "phys", p: 3, ch: "Moving Charges and Magnetism" },
+
+  { id: "d4s0", day: 4, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biotechnology: Principles and Processes, & Applications" },
+  { id: "d4s1", day: 4, slot: "10AM–1PM", sub: "math", p: 3, ch: "Continuity and Differentiability" },
+  { id: "d4s2", day: 4, slot: "2–5 PM", sub: "chem", p: 3, ch: "Coordination Compounds & d-and f-Block Elements" },
+  { id: "d4s3", day: 4, slot: "6–8 PM", sub: "phys", p: 3, ch: "Magnetism and Matter & Electromagnetic Induction" },
+
+  { id: "d5s0", day: 5, slot: "6–9 AM", sub: "bio", p: 3, ch: "Organisms and Populations & Ecosystem" },
+  { id: "d5s1", day: 5, slot: "10AM–1PM", sub: "math", p: 3, ch: "Application of Derivatives" },
+  { id: "d5s2", day: 5, slot: "2–5 PM", sub: "chem", p: 3, ch: "Electrochemistry & Chemical Kinetics (NCERT)" },
+  { id: "d5s3", day: 5, slot: "6–8 PM", sub: "phys", p: 3, ch: "Alternating Current & Electromagnetic Waves" },
+
+  { id: "d6s0", day: 6, slot: "6–9 AM", sub: "bio", p: 3, ch: "Biodiversity and Conservation & Environmental Issues" },
+  { id: "d6s1", day: 6, slot: "10AM–1PM", sub: "math", p: 3, ch: "Vector Algebra" },
+  { id: "d6s2", day: 6, slot: "2–5 PM", sub: "chem", p: 3, ch: "Solutions & Surface Chemistry" },
+  { id: "d6s3", day: 6, slot: "6–8 PM", sub: "phys", p: 3, ch: "Ray Optics and Optical Instruments" },
+
+  { id: "d7s0", day: 7, slot: "6–9 AM", sub: "bio", p: 3, ch: "Cell: The Unit of Life & Cell Cycle and Cell Division" },
+  { id: "d7s1", day: 7, slot: "10AM–1PM", sub: "math", p: 3, ch: "Three Dimensional Geometry" },
+  { id: "d7s2", day: 7, slot: "2–5 PM", sub: "chem", p: 3, ch: "Thermodynamics & Equilibrium (Class 11)" },
+  { id: "d7s3", day: 7, slot: "6–8 PM", sub: "phys", p: 3, ch: "Wave Optics" },
+
+  { id: "d8s0", day: 8, slot: "6–9 AM", sub: "bio", p: 3, ch: "Structural Organisation in Animals & Biomolecules (11th)" },
+  { id: "d8s1", day: 8, slot: "10AM–1PM", sub: "math", p: 3, ch: "Probability" },
+  { id: "d8s2", day: 8, slot: "2–5 PM", sub: "chem", p: 3, ch: "Structure of Atom & Classification of Elements" },
+  { id: "d8s3", day: 8, slot: "6–8 PM", sub: "phys", p: 3, ch: "Dual Nature of Radiation and Matter" },
+
+  { id: "d9s0", day: 9, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Kingdom & Animal Kingdom" },
+  { id: "d9s1", day: 9, slot: "10AM–1PM", sub: "math", p: 3, ch: "Relations and Functions & Inverse Trigonometric Functions" },
+  { id: "d9s2", day: 9, slot: "2–5 PM", sub: "chem", p: 3, ch: "Chemical Bonding and Molecular Structure" },
+  { id: "d9s3", day: 9, slot: "6–8 PM", sub: "phys", p: 3, ch: "Atoms and Nuclei" },
+
+  { id: "d10s0", day: 10, slot: "6–9 AM", sub: "bio", p: 3, ch: "Morphology & Anatomy of Flowering Plants" },
+  { id: "d10s1", day: 10, slot: "10AM–1PM", sub: "math", p: 3, ch: "Complex Numbers & Quadratic Equations, Linear Inequalities" },
+  { id: "d10s2", day: 10, slot: "2–5 PM", sub: "chem", p: 3, ch: "p-Block Elements (Class 11 & 12)" },
+  { id: "d10s3", day: 10, slot: "6–8 PM", sub: "phys", p: 3, ch: "Semiconductor Electronics (Materials, Devices & Circuits)" },
+
+  { id: "d11s0", day: 11, slot: "6–9 AM", sub: "bio", p: 3, ch: "Photosynthesis in Higher Plants & Respiration in Plants" },
+  { id: "d11s1", day: 11, slot: "10AM–1PM", sub: "math", p: 3, ch: "Permutations, Combinations & Binomial Theorem" },
+  { id: "d11s2", day: 11, slot: "2–5 PM", sub: "chem", p: 3, ch: "Some Basic Concepts of Chemistry & Redox Reactions" },
+  { id: "d11s3", day: 11, slot: "6–8 PM", sub: "phys", p: 3, ch: "Thermodynamics & Kinetic Theory" },
+
+  { id: "d12s0", day: 12, slot: "6–9 AM", sub: "bio", p: 3, ch: "Plant Growth and Development & Transport/Mineral Nutrition" },
+  { id: "d12s1", day: 12, slot: "10AM–1PM", sub: "math", p: 3, ch: "Sequence and Series & Limits and Derivatives" },
+  { id: "d12s2", day: 12, slot: "2–5 PM", sub: "chem", p: 3, ch: "Hydrocarbons & Environmental Chemistry" },
+  { id: "d12s3", day: 12, slot: "6–8 PM", sub: "phys", p: 3, ch: "Laws of Motion & Work, Energy and Power" },
+
+  { id: "d13s0", day: 13, slot: "6–9 AM", sub: "bio", p: 3, ch: "Digestion and Absorption & Breathing and Exchange of Gases" },
+  { id: "d13s1", day: 13, slot: "10AM–1PM", sub: "math", p: 3, ch: "Conic Sections & Straight Lines" },
+  { id: "d13s2", day: 13, slot: "2–5 PM", sub: "chem", p: 3, ch: "States of Matter & s-Block Elements" },
+  { id: "d13s3", day: 13, slot: "6–8 PM", sub: "phys", p: 3, ch: "Rotational Motion & Gravitation" },
+
+  { id: "d14s0", day: 14, slot: "6–9 AM", sub: "bio", p: 3, ch: "Body Fluids and Circulation & Excretory Products" },
+  { id: "d14s1", day: 14, slot: "10AM–1PM", sub: "math", p: 3, ch: "Sets, Mathematical Reasoning & Statistics" },
+  { id: "d14s2", day: 14, slot: "2–5 PM", sub: "chem", p: 3, ch: "Organic Chemistry: Some Basic Principles and Techniques" },
+  { id: "d14s3", day: 14, slot: "6–8 PM", sub: "phys", p: 3, ch: "Mechanical Properties of Solids and Fluids" },
+
+  { id: "d15s0", day: 15, slot: "6–9 AM", sub: "bio", p: 3, ch: "Locomotion and Movement, Neural Control & Chemical Coordination" },
+  { id: "d15s1", day: 15, slot: "10AM–1PM", sub: "math", p: 3, ch: "🔁 FULL MATHS MOCK TEST (KCET Pattern)" },
+  { id: "d15s2", day: 15, slot: "2–5 PM", sub: "chem", p: 3, ch: "🔁 FULL CHEMISTRY REVISION (Formulas & Name Reactions)" },
+  { id: "d15s3", day: 15, slot: "6–8 PM", sub: "phys", p: 3, ch: "🔁 FULL PHYSICS REVISION (Formula Drill)" },
 ];
 
-/** Checklist of major concepts — tick what you already know (independent of daily sessions). */
+/** Checklist of major NCERT units/concepts — tick what you already know. */
 export const CHAPTER_CHECKLIST = [
-  { id: "bio_genetics", sub: "bio", label: "Genetics (Mendel + Molecular)", stars: 3 },
-  { id: "bio_repro", sub: "bio", label: "Human Reproduction + Health", stars: 3 },
-  { id: "bio_physio", sub: "bio", label: "Human Physiology (both parts)", stars: 3 },
-  { id: "bio_ecology", sub: "bio", label: "Ecology + Biodiversity", stars: 3 },
+  { id: "bio_genetics", sub: "bio", label: "Genetics & Evolution (NCERT)", stars: 3 },
+  { id: "bio_repro", sub: "bio", label: "Reproduction (Plants & Human)", stars: 3 },
+  { id: "bio_human_physio", sub: "bio", label: "Human Physiology (NCERT 11th)", stars: 3 },
+  { id: "bio_plant_physio", sub: "bio", label: "Plant Physiology (NCERT 11th)", stars: 3 },
+  { id: "bio_cell", sub: "bio", label: "Cell Structure & Function", stars: 2 },
   { id: "bio_biotech", sub: "bio", label: "Biotechnology", stars: 3 },
-  { id: "bio_evo", sub: "bio", label: "Evolution", stars: 3 },
-  { id: "bio_plant", sub: "bio", label: "Plant Physiology", stars: 2 },
-  { id: "bio_cell", sub: "bio", label: "Cell Bio + Diversity", stars: 1 },
-  { id: "chem_halo", sub: "chem", label: "Haloalkanes & Haloarenes", stars: 3 },
-  { id: "chem_ape", sub: "chem", label: "APE (Alcohols, Phenols, Ethers)", stars: 3 },
-  { id: "chem_carbonyl", sub: "chem", label: "Carbonyl + Carboxylic Acids", stars: 3 },
-  { id: "chem_amines", sub: "chem", label: "Amines", stars: 3 },
-  { id: "chem_electro", sub: "chem", label: "Electrochemistry", stars: 3 },
-  { id: "chem_coord", sub: "chem", label: "Coordination Compounds", stars: 3 },
-  { id: "chem_kinetics", sub: "chem", label: "Chemical Kinetics", stars: 2 },
-  { id: "chem_block", sub: "chem", label: "p & d-block Elements", stars: 2 },
-  { id: "chem_bio", sub: "chem", label: "Biomolecules + Polymers", stars: 2 },
-  { id: "chem_misc", sub: "chem", label: "Solutions + Thermodynamics", stars: 1 },
-  { id: "phys_electrostatics", sub: "phys", label: "Electrostatics", stars: 3 },
-  { id: "phys_current", sub: "phys", label: "Current Electricity", stars: 3 },
-  { id: "phys_mag", sub: "phys", label: "Magnetism + EMI", stars: 3 },
-  { id: "phys_optics", sub: "phys", label: "Ray + Wave Optics", stars: 3 },
-  { id: "phys_modern", sub: "phys", label: "Modern Physics", stars: 3 },
-  { id: "phys_semi", sub: "phys", label: "Semiconductor Electronics", stars: 3 },
-  { id: "phys_waves", sub: "phys", label: "Waves + SHM", stars: 2 },
-  { id: "phys_mechanics", sub: "phys", label: "Laws of Motion", stars: 1 },
-  { id: "math_int", sub: "math", label: "Integration (Indefinite + Definite)", stars: 3 },
-  { id: "math_diff", sub: "math", label: "Differentiation + Applications", stars: 3 },
-  { id: "math_prob", sub: "math", label: "Probability", stars: 3 },
-  { id: "math_matrix", sub: "math", label: "Matrices & Determinants", stars: 3 },
-  { id: "math_3d", sub: "math", label: "3D Geometry", stars: 3 },
-  { id: "math_vec", sub: "math", label: "Vectors", stars: 3 },
-  { id: "math_conic", sub: "math", label: "Conic Sections", stars: 2 },
-  { id: "math_complex", sub: "math", label: "Complex Numbers", stars: 2 },
-  { id: "math_de", sub: "math", label: "Differential Equations", stars: 1 },
+  { id: "bio_ecology", sub: "bio", label: "Ecology", stars: 3 },
+  { id: "bio_diversity", sub: "bio", label: "Diversity in Living World", stars: 1 },
+  { id: "bio_structure", sub: "bio", label: "Structural Org in Animals & Plants", stars: 1 },
+
+  { id: "chem_organic_12", sub: "chem", label: "Organic Chem - Class 12 Chapters", stars: 3 },
+  { id: "chem_organic_11", sub: "chem", label: "Organic Chem - Class 11 (GOC, Hydrocarbons)", stars: 3 },
+  { id: "chem_physical_12", sub: "chem", label: "Physical Chem - Class 12 (Electro, Kinetics)", stars: 3 },
+  { id: "chem_physical_11", sub: "chem", label: "Physical Chem - Class 11 (Thermo, Eq)", stars: 2 },
+  { id: "chem_inorganic", sub: "chem", label: "Inorganic Chem (Periodic, Bonding, Blocks)", stars: 2 },
+
+  { id: "phys_electro", sub: "phys", label: "Electrostatics & Current", stars: 3 },
+  { id: "phys_magnetic", sub: "phys", label: "Magnetism & EMI", stars: 3 },
+  { id: "phys_optics", sub: "phys", label: "Optics (Ray & Wave)", stars: 3 },
+  { id: "phys_modern", sub: "phys", label: "Modern Physics (Atoms, Nuclei, Dual Nature)", stars: 3 },
+  { id: "phys_mech_11", sub: "phys", label: "Mechanics (Laws of Motion, Work, Rotational)", stars: 2 },
+  { id: "phys_thermo", sub: "phys", label: "Thermodynamics & Kinetic Theory", stars: 1 },
+
+  { id: "math_calculus", sub: "math", label: "Calculus (Integrals & Derivatives)", stars: 3 },
+  { id: "math_algebra", sub: "math", label: "Algebra (Matrices, Complex, Binomial)", stars: 3 },
+  { id: "math_vectors_3d", sub: "math", label: "Vectors & 3D Geometry", stars: 3 },
+  { id: "math_coord", sub: "math", label: "Coordinate Geometry (Conics, Lines)", stars: 2 },
+  { id: "math_prob", sub: "math", label: "Probability & Statistics", stars: 2 },
 ];
 
 export const QUOTES = [
   "Every chapter you finish today is one less thing to panic about on Apr 23, 2026.",
   "Put the phone down. The notifs will be there after you ace KCET 2026.",
   "Consistency beats intensity. Show up every single session.",
-  "Don't think about 4 subjects — think about this one chapter.",
+  "Don't think about 4 subjects — think about this one NCERT chapter.",
   "The students who get top ranks aren't smarter. They're consistent.",
   "Hard work now = options later. Skipping now = regret later.",
   "You don't need motivation. You need discipline. Just start.",
@@ -147,8 +155,8 @@ export const QUOTES = [
   "NCERT is your best friend right now — not Instagram.",
 ];
 
-/** First day of the 16-day planner (KCET 2026). */
-export const PLAN_START = "2026-03-29";
+/** First day of the 16-day planner (Mar 30). */
+export const PLAN_START = "2026-03-30";
 /** KCET 2026 exam window start (day 1 of exam). */
 export const KCET_EXAM_DATE = "2026-04-23";
 
@@ -157,7 +165,7 @@ export function getDayIndex() {
   now.setHours(0, 0, 0, 0);
   const s = new Date(PLAN_START);
   s.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.min(15, Math.floor((now - s) / 86400000)));
+  return Math.max(0, Math.min(TOTAL_PLAN_DAYS - 1, Math.floor((now - s) / 86400000)));
 }
 
 export function getDaysToExam() {

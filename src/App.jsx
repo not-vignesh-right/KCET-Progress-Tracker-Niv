@@ -115,6 +115,21 @@ export default function App() {
   );
   const [installAvailable, setInstallAvailable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentSession, setCurrentSession] = useState(null);
+  const [nextSession, setNextSession] = useState(null);
+  const [sessionTimers, setSessionTimers] = useState(() => {
+    // Load timer data from localStorage on initial load
+    try {
+      const savedTimers = localStorage.getItem('kcet-session-timers');
+      return savedTimers ? JSON.parse(savedTimers) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [focusMode, setFocusMode] = useState(null);
+  const [focusStartTime, setFocusStartTime] = useState(null);
+  const [focusElapsed, setFocusElapsed] = useState(0);
   const installPromptRef = useRef(null);
   const remindGateRef = useRef({});
 
@@ -125,16 +140,15 @@ export default function App() {
       streak,
       lastDay,
       chapterDone,
-      phoneBanner,
       reminderEnabled,
       lastReminderNotifyDate,
+      sessionTimers, // Add timer data to persistence
     };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      /* ignore quota */
-    }
-  }, [status, catchUps, streak, lastDay, chapterDone, phoneBanner, reminderEnabled, lastReminderNotifyDate]);
+    localStorage.setItem("kcet-coach", JSON.stringify(payload));
+    
+    // Also save timers separately for easy access
+    localStorage.setItem('kcet-session-timers', JSON.stringify(sessionTimers));
+  }, [status, catchUps, streak, lastDay, chapterDone, reminderEnabled, lastReminderNotifyDate, sessionTimers]);
 
   useEffect(() => {
     persist();
@@ -147,6 +161,244 @@ export default function App() {
       setIsStandalone(mq.matches || Boolean(ios));
     } catch (_) {}
   }, []);
+
+
+
+  const startSession = useCallback((sessionId) => {
+    const now = new Date();
+    setSessionTimers(prev => ({
+      ...prev,
+      [sessionId]: {
+        startTime: now,
+        elapsedTime: 0,
+        isPaused: false,
+        totalPausedTime: 0,
+        lastPauseTime: null
+      }
+    }));
+  }, []);
+
+  const pauseSession = useCallback((sessionId) => {
+    setSessionTimers(prev => {
+      const timer = prev[sessionId];
+      if (!timer) return prev;
+      
+      if (timer.isPaused) {
+        // Resume
+        const pauseDuration = timer.lastPauseTime ? (new Date() - timer.lastPauseTime) / 1000 : 0;
+        return {
+          ...prev,
+          [sessionId]: {
+            ...timer,
+            isPaused: false,
+            totalPausedTime: (timer.totalPausedTime || 0) + pauseDuration,
+            lastPauseTime: null
+          }
+        };
+      } else {
+        // Pause
+        return {
+          ...prev,
+          [sessionId]: {
+            ...timer,
+            isPaused: true,
+            lastPauseTime: new Date()
+          }
+        };
+      }
+    });
+  }, []);
+
+  const stopSession = useCallback((sessionId) => {
+    setSessionTimers(prev => {
+      const timer = prev[sessionId];
+      if (!timer) return prev;
+      
+      const finalElapsed = timer.isPaused && timer.lastPauseTime 
+        ? (timer.elapsedTime || 0) 
+        : (timer.elapsedTime || 0) + (new Date() - timer.startTime) / 1000 - (timer.totalPausedTime || 0);
+      
+      return {
+        ...prev,
+        [sessionId]: {
+          ...timer,
+          elapsedTime: finalElapsed,
+          isCompleted: true,
+          isPaused: false
+        }
+      };
+    });
+  }, []);
+
+  const enterFocusMode = useCallback((session) => {
+    // Don't pause the timer - let it continue running
+    // Just record when focus mode started for time tracking
+    setFocusMode(session);
+    setFocusStartTime(new Date());
+    setFocusElapsed(0);
+  }, []);
+
+  const exitFocusMode = useCallback(() => {
+    if (focusMode) {
+      // Don't stop the timer automatically, just pause it
+      pauseSession(focusMode.id);
+    }
+    setFocusMode(null);
+    setFocusStartTime(null);
+    setFocusElapsed(0);
+  }, [focusMode, pauseSession]);
+
+  // Keyboard handler for focus mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && focusMode) {
+        pauseSession(focusMode.id);
+        exitFocusMode();
+      }
+    };
+
+    if (focusMode) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [focusMode, pauseSession, exitFocusMode]);
+
+  const getSessionTimer = useCallback((sessionId) => {
+    const timer = sessionTimers[sessionId];
+    if (!timer) return null;
+    
+    if (!timer.isCompleted && !timer.isPaused && timer.startTime) {
+      // Timer is running - calculate current elapsed time
+      const currentElapsed = (new Date() - timer.startTime) / 1000 - (timer.totalPausedTime || 0);
+      return {
+        ...timer,
+        elapsedTime: currentElapsed
+      };
+    }
+    
+    if (timer.isPaused && timer.startTime) {
+      // Timer is paused - calculate elapsed time up to when it was paused
+      const finalElapsed = timer.elapsedTime || 0;
+      return {
+        ...timer,
+        elapsedTime: finalElapsed
+      };
+    }
+    
+    // Timer hasn't started yet or other states
+    return {
+      ...timer,
+      elapsedTime: timer.elapsedTime || 0
+    };
+  }, [sessionTimers]);
+
+  const formatTime = (seconds) => {
+    if (!seconds || seconds < 0) return '0:00';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const updateCurrentSession = (now) => {
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    // Session time ranges in minutes
+    const sessionRanges = [
+      { start: 6 * 60, end: 9 * 60, label: "6–9 AM" },
+      { start: 10 * 60, end: 13 * 60, label: "10AM–1PM" },
+      { start: 14 * 60, end: 17 * 60, label: "2–5 PM" },
+      { start: 18 * 60, end: 20 * 60, label: "6–8 PM" },
+    ];
+
+    // Find current session
+    const currentSessionRange = sessionRanges.find(range => 
+      currentTimeInMinutes >= range.start && currentTimeInMinutes < range.end
+    );
+
+    if (currentSessionRange) {
+      const current = todayAll.find(s => s.slot === currentSessionRange.label);
+      setCurrentSession(current || null);
+    } else {
+      setCurrentSession(null);
+    }
+
+    // Find next session
+    const nextRange = sessionRanges.find(range => currentTimeInMinutes < range.start);
+    if (nextRange) {
+      const next = todayAll.find(s => s.slot === nextRange.label);
+      setNextSession(next || null);
+    } else {
+      // If all sessions for today are done, look at tomorrow
+      setNextSession(null);
+    }
+  };
+
+  const getSessionStatus = (session) => {
+    if (!session) return null;
+    const sessionStatus = status[session.id];
+    if (isSessionComplete(sessionStatus)) return "completed";
+    if (sessionStatus === "skipped") return "skipped";
+    return "pending";
+  };
+
+  const getTimeUntilSession = (sessionSlot) => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    const sessionTimes = {
+      "6–9 AM": { start: 6 * 60, end: 9 * 60 },
+      "10AM–1PM": { start: 10 * 60, end: 13 * 60 },
+      "2–5 PM": { start: 14 * 60, end: 17 * 60 },
+      "6–8 PM": { start: 18 * 60, end: 20 * 60 },
+    };
+
+    const sessionTime = sessionTimes[sessionSlot];
+    if (!sessionTime) return null;
+
+    const minutesUntil = sessionTime.start - currentTimeInMinutes;
+    if (minutesUntil <= 0) return null;
+
+    const hours = Math.floor(minutesUntil / 60);
+    const minutes = minutesUntil % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const getSessionProgress = (session) => {
+    if (!session || !currentSession || currentSession.id !== session.id) return 0;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    const sessionRanges = {
+      "6–9 AM": { start: 6 * 60, end: 9 * 60, duration: 3 * 60 },
+      "10AM–1PM": { start: 10 * 60, end: 13 * 60, duration: 3 * 60 },
+      "2–5 PM": { start: 14 * 60, end: 17 * 60, duration: 3 * 60 },
+      "6–8 PM": { start: 18 * 60, end: 20 * 60, duration: 2 * 60 },
+    };
+
+    const range = sessionRanges[session.slot];
+    if (!range) return 0;
+
+    const elapsed = currentTimeInMinutes - range.start;
+    const progress = Math.min(100, Math.max(0, (elapsed / range.duration) * 100));
+    return Math.round(progress);
+  };
 
   useEffect(() => {
     const onBip = (e) => {
@@ -268,6 +520,25 @@ export default function App() {
   const todayCU = pendingCU.filter((c) => c.catchUpDay === todayIdx);
   const todayAll = [...todaySess, ...todayCU];
   const todayDone = todayAll.filter((s) => isSessionComplete(status[s.id])).length;
+
+  // Dynamic time updates - moved here to fix dependency issue
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      updateCurrentSession(now);
+      
+      // Update focus mode elapsed time
+      if (focusMode && focusStartTime) {
+        setFocusElapsed(Math.floor((now - focusStartTime) / 1000));
+      }
+    }, 1000); // Update every second for timer accuracy
+
+    // Initial call
+    updateCurrentSession(new Date());
+
+    return () => clearInterval(timer);
+  }, [todayIdx, todayAll, status, focusMode, focusStartTime]);
 
   remindGateRef.current = {
     on: reminderEnabled,
@@ -401,18 +672,146 @@ export default function App() {
   }, [status, catchUps, streak, lastDay, chapterDone]);
 
   return (
-    <div
-      style={{
-        background: T.bgGradient,
-        minHeight: "100vh",
-        fontFamily: "'Nunito',sans-serif",
-        color: T.text,
-        paddingBottom: 88,
-        maxWidth: 480,
-        margin: "0 auto",
-        boxSizing: "border-box",
-      }}
-    >
+    <>
+      {focusMode && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: focusMode.sub === 'bio' ? 'linear-gradient(135deg, #064e3b, #0f766e)' :
+                      focusMode.sub === 'chem' ? 'linear-gradient(135deg, #1e3a8a, #312e81)' :
+                      focusMode.sub === 'phys' ? 'linear-gradient(135deg, #7c2d12, #451a03)' :
+                      focusMode.sub === 'math' ? 'linear-gradient(135deg, #581c87, #3c1361)' :
+                      'linear-gradient(135deg, #1e1b4b, #312e81)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontFamily: "'Nunito', sans-serif",
+          }}
+        >
+          <div style={{ textAlign: 'center', maxWidth: 400, padding: 20 }}>
+            <div style={{ fontSize: 16, color: '#a78bfa', marginBottom: 8, fontWeight: 600 }}>
+              {S[focusMode.sub].emoji} {S[focusMode.sub].label}
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 20, lineHeight: 1.3 }}>
+              {focusMode.ch.split('(')[0].trim()}
+            </div>
+            
+            <div style={{
+              fontSize: 48,
+              fontWeight: 800,
+              color: focusMode.sub === 'bio' ? '#5ee9b5' :
+                     focusMode.sub === 'chem' ? '#7cb9ff' :
+                     focusMode.sub === 'phys' ? '#ffb86b' :
+                     focusMode.sub === 'math' ? '#e78dfb' : '#fbbf24',
+              marginBottom: 20,
+              fontFamily: "'Fredoka', sans-serif",
+              textShadow: focusMode.sub === 'bio' ? '0 0 20px rgba(94, 233, 181, 0.5)' :
+                         focusMode.sub === 'chem' ? '0 0 20px rgba(124, 185, 255, 0.5)' :
+                         focusMode.sub === 'phys' ? '0 0 20px rgba(255, 184, 107, 0.5)' :
+                         focusMode.sub === 'math' ? '0 0 20px rgba(231, 141, 251, 0.5)' :
+                         '0 0 20px rgba(251, 191, 36, 0.5)',
+            }}>
+              {formatTime((getSessionTimer(focusMode.id)?.elapsedTime || 0) + focusElapsed)}
+            </div>
+            
+            <div style={{ fontSize: 14, color: '#e2e8f0', marginBottom: 30, fontStyle: 'italic' }}>
+              Stay focused! You're doing great 🎯
+            </div>
+            
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  pauseSession(focusMode.id);
+                  exitFocusMode();
+                }}
+                style={{
+                  background: focusMode.sub === 'bio' ? 'rgba(94, 233, 181, 0.2)' :
+                             focusMode.sub === 'chem' ? 'rgba(124, 185, 255, 0.2)' :
+                             focusMode.sub === 'phys' ? 'rgba(255, 184, 107, 0.2)' :
+                             focusMode.sub === 'math' ? 'rgba(231, 141, 251, 0.2)' :
+                             'rgba(251, 191, 36, 0.2)',
+                  color: focusMode.sub === 'bio' ? '#5ee9b5' :
+                         focusMode.sub === 'chem' ? '#7cb9ff' :
+                         focusMode.sub === 'phys' ? '#ffb86b' :
+                         focusMode.sub === 'math' ? '#e78dfb' : '#fbbf24',
+                  border: `1px solid ${focusMode.sub === 'bio' ? '#5ee9b5' :
+                                    focusMode.sub === 'chem' ? '#7cb9ff' :
+                                    focusMode.sub === 'phys' ? '#ffb86b' :
+                                    focusMode.sub === 'math' ? '#e78dfb' : '#fbbf24'}`,
+                  borderRadius: 12,
+                  padding: '12px 24px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ⏸️ Pause & Exit
+              </button>
+              <button
+                onClick={() => {
+                  stopSession(focusMode.id);
+                  markDone(focusMode);
+                  exitFocusMode();
+                }}
+                style={{
+                  background: focusMode.sub === 'bio' ? 'rgba(94, 233, 181, 0.2)' :
+                             focusMode.sub === 'chem' ? 'rgba(124, 185, 255, 0.2)' :
+                             focusMode.sub === 'phys' ? 'rgba(255, 184, 107, 0.2)' :
+                             focusMode.sub === 'math' ? 'rgba(231, 141, 251, 0.2)' :
+                             'rgba(52, 211, 153, 0.2)',
+                  color: focusMode.sub === 'bio' ? '#5ee9b5' :
+                         focusMode.sub === 'chem' ? '#7cb9ff' :
+                         focusMode.sub === 'phys' ? '#ffb86b' :
+                         focusMode.sub === 'math' ? '#e78dfb' : '#5ee9b5',
+                  border: `1px solid ${focusMode.sub === 'bio' ? '#5ee9b5' :
+                                    focusMode.sub === 'chem' ? '#7cb9ff' :
+                                    focusMode.sub === 'phys' ? '#ffb86b' :
+                                    focusMode.sub === 'math' ? '#e78dfb' : '#5ee9b5'}`,
+                  borderRadius: 12,
+                  padding: '12px 24px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ✅ Complete Session
+              </button>
+            </div>
+          </div>
+          
+          <div style={{
+            position: 'absolute',
+            bottom: 20,
+            fontSize: 12,
+            color: '#64748b',
+            fontStyle: 'italic',
+          }}>
+            Press ESC or tap outside to pause
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          background: T.bgGradient,
+          minHeight: "100vh",
+          fontFamily: "'Nunito',sans-serif",
+          color: T.text,
+          paddingBottom: 88,
+          maxWidth: 480,
+          margin: "0 auto",
+          boxSizing: "border-box",
+          filter: focusMode ? 'blur(8px)' : 'none',
+          transition: 'filter 0.3s ease',
+        }}
+      >
       {phoneBanner && (
         <div
           style={{
@@ -580,6 +979,67 @@ export default function App() {
             color: T.faint,
             letterSpacing: 1,
             textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} · Live Session Tracker
+        </div>
+        
+        {currentSession && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: S[currentSession.sub].color }}>
+                {S[currentSession.sub].emoji} NOW: {currentSession.ch.split('(')[0].trim()}
+              </span>
+              <span style={{ fontSize: 10, color: T.muted }}>
+                {getSessionProgress(currentSession)}% complete
+              </span>
+            </div>
+            <div
+              style={{
+                height: 4,
+                background: '#f0f0f0',
+                borderRadius: 2,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${getSessionProgress(currentSession)}%`,
+                  background: S[currentSession.sub].color,
+                  transition: 'width 1s ease',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {nextSession && !currentSession && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>
+              Next session starts in:
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: S[nextSession.sub].color }}>
+              {getTimeUntilSession(nextSession.slot)} · {S[nextSession.sub].emoji} {nextSession.ch.split('(')[0].trim()}
+            </div>
+          </div>
+        )}
+
+        {!currentSession && !nextSession && (
+          <div style={{ fontSize: 11, color: T.muted, fontStyle: 'italic' }}>
+            All today's sessions completed! 🎉
+          </div>
+        )}
+
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            color: T.faint,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            marginTop: 8,
             marginBottom: 6,
           }}
         >
@@ -765,6 +1225,16 @@ export default function App() {
               onSkip={markSkipped}
               onMastered={markMastered}
               flash={flash === s.id}
+              isCurrentSession={currentSession?.id === s.id}
+              isNextSession={nextSession?.id === s.id}
+              timeUntilSession={getTimeUntilSession(s.slot)}
+              sessionProgress={getSessionProgress(s)}
+              timer={getSessionTimer(s.id)}
+              onStart={startSession}
+              onPause={pauseSession}
+              onStop={stopSession}
+              onFocusMode={enterFocusMode}
+              formatTime={formatTime}
             />
           ))}
           {todayCU.length > 0 && (
@@ -792,6 +1262,16 @@ export default function App() {
                   onMastered={markMastered}
                   catchUp
                   flash={flash === s.id}
+                  isCurrentSession={currentSession?.id === s.id}
+                  isNextSession={nextSession?.id === s.id}
+                  timeUntilSession={getTimeUntilSession(s.slot)}
+                  sessionProgress={getSessionProgress(s)}
+                  timer={getSessionTimer(s.id)}
+                  onStart={startSession}
+                  onPause={pauseSession}
+                  onStop={stopSession}
+                  onFocusMode={enterFocusMode}
+                  formatTime={formatTime}
                 />
               ))}
             </>
@@ -938,6 +1418,15 @@ export default function App() {
                         onMastered={markMastered}
                         compact
                         flash={flash === s.id}
+                        isCurrentSession={currentSession?.id === s.id}
+                        isNextSession={nextSession?.id === s.id}
+                        timeUntilSession={getTimeUntilSession(s.slot)}
+                        sessionProgress={getSessionProgress(s)}
+                        timer={getSessionTimer(s.id)}
+                        onStart={startSession}
+                        onPause={pauseSession}
+                        onStop={stopSession}
+                        onFocusMode={enterFocusMode}
                       />
                     ))}
                     {pendingCU
@@ -953,6 +1442,15 @@ export default function App() {
                           compact
                           catchUp
                           flash={flash === s.id}
+                          isCurrentSession={currentSession?.id === s.id}
+                          isNextSession={nextSession?.id === s.id}
+                          timeUntilSession={getTimeUntilSession(s.slot)}
+                          sessionProgress={getSessionProgress(s)}
+                          timer={getSessionTimer(s.id)}
+                          onStart={startSession}
+                          onPause={pauseSession}
+                          onStop={stopSession}
+                          onFocusMode={enterFocusMode}
                         />
                       ))}
                   </div>
@@ -1251,10 +1749,11 @@ export default function App() {
         ))}
       </div>
     </div>
+      </>
   );
 }
 
-function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
+function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash, isCurrentSession, isNextSession, timeUntilSession, sessionProgress, timer, onStart, onPause, onStop, onFocusMode, formatTime }) {
   const done = st === "done";
   const mastered = st === "mastered";
   const skipped = st === "skipped";
@@ -1264,14 +1763,16 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
     <div
       style={{
         marginBottom: compact ? 4 : 7,
-        background: done
-          ? T.mintDim
-          : mastered
-            ? T.lilacDim
-            : skipped
-              ? T.cardBlush
-              : "#fff",
+        background: isCurrentSession ? `${S[s.sub].color}15` : 
+          done
+            ? T.mintDim
+            : mastered
+              ? T.lilacDim
+              : skipped
+                ? T.cardBlush
+                : "#fff",
         border: `1px solid ${
+          isCurrentSession ? S[s.sub].color :
           done
             ? `${T.mint}55`
             : mastered
@@ -1284,9 +1785,26 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
         padding: compact ? "7px 10px" : "11px 12px",
         opacity: skipped ? 0.45 : 1,
         transition: "all 0.2s ease",
-        boxShadow: flash ? `0 0 0 3px ${S[s.sub].color}22` : T.shadowSm,
+        boxShadow: flash ? `0 0 0 3px ${S[s.sub].color}22` : 
+                  isCurrentSession ? `0 0 0 2px ${S[s.sub].color}40` : T.shadowSm,
+        position: "relative",
       }}
     >
+      {isCurrentSession && (
+        <div
+          style={{
+            position: "absolute",
+            top: -1,
+            left: -1,
+            right: -1,
+            bottom: -1,
+            background: `linear-gradient(45deg, ${S[s.sub].color}20, ${S[s.sub].color}10)`,
+            borderRadius: T.radiusMd,
+            zIndex: -1,
+          }}
+        />
+      )}
+      
       <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap", marginBottom: 3 }}>
@@ -1303,6 +1821,35 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
               {S[s.sub].emoji} {S[s.sub].label}
             </span>
             <span style={{ fontSize: 10, color: T.muted }}>{s.slot}</span>
+            {isCurrentSession && (
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: S[s.sub].color,
+                  padding: "2px 6px",
+                  borderRadius: 10,
+                  animation: "pulse 2s infinite",
+                }}
+              >
+                🔴 LIVE
+              </span>
+            )}
+            {isNextSession && !isCurrentSession && (
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: S[s.sub].color,
+                  background: `${S[s.sub].color}15`,
+                  padding: "2px 6px",
+                  borderRadius: 10,
+                }}
+              >
+                ⏰ NEXT ({timeUntilSession})
+              </span>
+            )}
             {catchUp && (
               <span
                 style={{
@@ -1352,6 +1899,119 @@ function Card({ s, st, onDone, onSkip, onMastered, compact, catchUp, flash }) {
           >
             {s.ch}
           </div>
+          
+          {isCurrentSession && sessionProgress > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                <span style={{ fontSize: 9, color: T.muted }}>Session Progress</span>
+                <span style={{ fontSize: 9, color: S[s.sub].color, fontWeight: 700 }}>{sessionProgress}%</span>
+              </div>
+              <div
+                style={{
+                  height: 3,
+                  background: '#f0f0f0',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${sessionProgress}%`,
+                    background: S[s.sub].color,
+                    transition: 'width 1s ease',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {!complete && (
+            <div style={{ marginTop: 8 }}>
+              {timer && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: T.muted }}>Study Time</span>
+                  <span style={{ fontSize: 10, color: S[s.sub].color, fontWeight: 700 }}>
+                    {timer.isPaused ? '⏸️ PAUSED' : '⏱️'} {formatTime(timer.elapsedTime)}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 4 }}>
+                {!timer || !timer.startTime ? (
+                  <button
+                    type="button"
+                    onClick={() => onStart(s.id)}
+                    style={{
+                      flex: 1,
+                      background: S[s.sub].color,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ▶️ START
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onPause(s.id)}
+                      style={{
+                        flex: 1,
+                        background: timer.isPaused ? '#5ee9b5' : '#fbbf24',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '4px 6px',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {timer.isPaused ? '▶️ RESUME' : '⏸️ PAUSE'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onStop(s.id)}
+                      style={{
+                        flex: 1,
+                        background: '#fb7185',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '4px 6px',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ⏹️ STOP
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onFocusMode(s)}
+                  style={{
+                    background: 'linear-gradient(45deg, #8b5cf6, #ec4899)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🎯 FOCUS
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {!complete && !skipped && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
