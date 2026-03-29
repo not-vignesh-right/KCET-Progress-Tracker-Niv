@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { BUDDY_LINES, USER } from "./config.js";
 import {
   ALL_SESSIONS,
@@ -11,6 +11,7 @@ import {
   getDaysToExam,
 } from "./data.js";
 import { pickCatchUpDay } from "./scheduleUtils.js";
+import { isReminderQuietHour, setPeriodicReminder } from "./reminderSync.js";
 import { T } from "./theme.js";
 
 const STORAGE_KEY = "kcet_coach_v3";
@@ -79,6 +80,14 @@ export default function App() {
   const [phoneBanner, setPhoneBanner] = useState(initial.phoneBanner !== false);
   const [copyHint, setCopyHint] = useState(null);
   const [chaptersOpen, setChaptersOpen] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(() => !!initial.reminderEnabled);
+  const [lastReminderNotifyDate, setLastReminderNotifyDate] = useState(
+    () => initial.lastReminderNotifyDate || null
+  );
+  const [installAvailable, setInstallAvailable] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const installPromptRef = useRef(null);
+  const remindGateRef = useRef({});
 
   const persist = useCallback(() => {
     const payload = {
@@ -88,17 +97,86 @@ export default function App() {
       lastDay,
       chapterDone,
       phoneBanner,
+      reminderEnabled,
+      lastReminderNotifyDate,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       /* ignore quota */
     }
-  }, [status, catchUps, streak, lastDay, chapterDone, phoneBanner]);
+  }, [status, catchUps, streak, lastDay, chapterDone, phoneBanner, reminderEnabled, lastReminderNotifyDate]);
 
   useEffect(() => {
     persist();
   }, [persist]);
+
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia("(display-mode: standalone)");
+      const ios = "standalone" in window.navigator && window.navigator.standalone;
+      setIsStandalone(mq.matches || Boolean(ios));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    const onBip = (e) => {
+      e.preventDefault();
+      installPromptRef.current = e;
+      setInstallAvailable(true);
+    };
+    window.addEventListener("beforeinstallprompt", onBip);
+    return () => window.removeEventListener("beforeinstallprompt", onBip);
+  }, []);
+
+  useEffect(() => {
+    if (!reminderEnabled) {
+      void setPeriodicReminder(false);
+      return;
+    }
+    void setPeriodicReminder(true);
+  }, [reminderEnabled]);
+
+  useEffect(() => {
+    if (!reminderEnabled) return;
+    const tick = () => {
+      const g = remindGateRef.current;
+      if (!g.on || g.perm !== "granted" || !g.hasIncomplete) return;
+      if (isReminderQuietHour()) return;
+      const today = new Date().toISOString().slice(0, 10);
+      setLastReminderNotifyDate((prev) => {
+        if (prev === today) return prev;
+        void (async () => {
+          const reg = await navigator.serviceWorker.ready;
+          reg.active?.postMessage({ type: "REMIND_NOW", soft: true });
+        })();
+        return today;
+      });
+    };
+    tick();
+    const iv = window.setInterval(tick, 25 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [reminderEnabled]);
+
+  const runInstallPwa = async () => {
+    const e = installPromptRef.current;
+    if (!e || !e.prompt) return;
+    e.prompt();
+    await e.userChoice;
+    installPromptRef.current = null;
+    setInstallAvailable(false);
+  };
+
+  const toggleReminders = async () => {
+    if (reminderEnabled) {
+      setReminderEnabled(false);
+      return;
+    }
+    if (typeof Notification === "undefined") return;
+    const p = await Notification.requestPermission();
+    if (p !== "granted") return;
+    setReminderEnabled(true);
+  };
 
   const markDone = useCallback(
     (s) => {
@@ -161,6 +239,12 @@ export default function App() {
   const todayCU = pendingCU.filter((c) => c.catchUpDay === todayIdx);
   const todayAll = [...todaySess, ...todayCU];
   const todayDone = todayAll.filter((s) => isSessionComplete(status[s.id])).length;
+
+  remindGateRef.current = {
+    on: reminderEnabled,
+    perm: typeof Notification !== "undefined" ? Notification.permission : "denied",
+    hasIncomplete: todayAll.length > 0 && todayDone < todayAll.length,
+  };
 
   const subStats = useMemo(() => {
     return Object.keys(S).reduce((acc, sub) => {
@@ -491,6 +575,76 @@ export default function App() {
         >
           “{QUOTES[todayIdx % QUOTES.length]}”
         </div>
+      </div>
+
+      <div
+        style={{
+          margin: "0 12px 10px",
+          background: T.lilacDim,
+          border: `1px solid ${T.border}`,
+          borderRadius: T.radiusLg,
+          padding: "14px 16px",
+          boxShadow: T.shadowSm,
+        }}
+      >
+        <div style={{ fontSize: 10, fontWeight: 800, color: T.faint, letterSpacing: 1, marginBottom: 8 }}>
+          PHONE APP & REMINDERS
+        </div>
+        {isStandalone && (
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: T.mint, fontWeight: 700 }}>
+            Installed as an app — you are in standalone mode.
+          </p>
+        )}
+        <p style={{ margin: "0 0 10px", fontSize: 12, color: T.muted, lineHeight: 1.45 }}>
+          Install like a real app (cutie icon on home screen). Reminders only{" "}
+          <strong style={{ color: T.cream }}>8am–9pm</strong> on her phone — never at night.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(installAvailable || /iPhone|iPad|iPod/i.test(navigator.userAgent || "")) && (
+            <button
+              type="button"
+              onClick={runInstallPwa}
+              disabled={!installAvailable}
+              style={{
+                width: "100%",
+                padding: "11px 12px",
+                borderRadius: T.radiusMd,
+                border: "none",
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: installAvailable ? "pointer" : "default",
+                background: installAvailable ? T.roseText : T.cardBlush,
+                color: "#fff",
+                opacity: installAvailable ? 1 : 0.7,
+              }}
+            >
+              {installAvailable ? "Add to home screen (install app)" : "iPhone: Share → Add to Home Screen"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={toggleReminders}
+            style={{
+              width: "100%",
+              padding: "11px 12px",
+              borderRadius: T.radiusMd,
+              border: `1px solid ${reminderEnabled ? T.mint : T.border}`,
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: "pointer",
+              background: reminderEnabled ? T.mintDim : T.surface,
+              color: reminderEnabled ? T.mint : T.cream,
+            }}
+          >
+            {reminderEnabled
+              ? "Daily reminders on — tap to turn off"
+              : "Turn on gentle day-time reminders"}
+          </button>
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: 11, color: T.faint, lineHeight: 1.4 }}>
+          Android Chrome: best background nudges. iPhone: reminders when you open the app or from periodic sync
+          if Safari allows.
+        </p>
       </div>
 
       {copyHint && (
